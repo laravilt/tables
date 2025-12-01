@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/**
+ * Tables Styles
+ *
+ * Custom theme configuration for Tailwind CSS v4
+ *
+ * @theme {
+ *   --color-primary: oklch(0.72 0.11 178);
+ *   --color-secondary: oklch(0.65 0.15 250);
+ * }
+ */
