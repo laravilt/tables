@@ -1,29 +1,15 @@
 /**
  * Tables Plugin for Vue.js
  *
- * This plugin can be registered in your main Laravilt application.
+ * Registers all table-related components globally
  *
- * Example usage in app.ts:
- *
- * import TablesPlugin from '@/plugins/tables';
- *
- * app.use(TablesPlugin, {
- *     // Plugin options
- * });
+ * Note: Filter components are not needed here since we use BaseFilter
+ * with Laravilt Form components instead.
  */
 
 export default {
     install(app, options = {}) {
-        // Plugin installation logic
-        console.log('Tables plugin installed', options);
-
-        // Register global components
-        // app.component('TablesComponent', ComponentName);
-
-        // Provide global properties
-        // app.config.globalProperties.$tables = {};
-
-        // Add global methods
-        // app.mixin({});
+        // No table-specific components to register yet
+        // Filters use BaseFilter + Form components which are already registered
     }
 };
