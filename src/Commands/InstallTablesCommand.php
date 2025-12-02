@@ -30,7 +30,7 @@ class InstallTablesCommand extends Command
         // Publish config
         $this->publishConfig();
 
-$this->publishAssets();
+        $this->publishAssets();
         if (! $this->option('without-assets')) {
             $this->buildAssets();
         }
@@ -56,7 +56,8 @@ $this->publishAssets();
 
         Artisan::call('vendor:publish', $params, $this->output);
     }
-protected function publishAssets(): void
+
+    protected function publishAssets(): void
     {
         $this->info('Publishing assets...');
 
@@ -66,7 +67,9 @@ protected function publishAssets(): void
         ]);
 
         $this->components->success('Assets published successfully!');
-    }protected function buildAssets(): void
+    }
+
+    protected function buildAssets(): void
     {
         $this->info('Building assets...');
 

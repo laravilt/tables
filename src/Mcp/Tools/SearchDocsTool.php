@@ -105,6 +105,7 @@ class SearchDocsTool extends Tool
         }
 
         usort($results, fn ($a, $b) => $b['relevance'] <=> $a['relevance']);
+
         return array_slice($results, 0, 5);
     }
 
@@ -118,7 +119,7 @@ class SearchDocsTool extends Tool
 
         foreach ($lines as $line) {
             if (preg_match('/^#+\s+(.+)$/', $line, $matches)) {
-                if ($inRelevantSection && !empty(trim($currentSection))) {
+                if ($inRelevantSection && ! empty(trim($currentSection))) {
                     $sections[] = trim($currentHeader."\n\n".$currentSection);
                 }
 
@@ -134,7 +135,7 @@ class SearchDocsTool extends Tool
                 }
             } else {
                 $currentSection .= $line."\n";
-                if (!$inRelevantSection) {
+                if (! $inRelevantSection) {
                     $lineLower = strtolower($line);
                     foreach ($keywords as $keyword) {
                         if (stripos($lineLower, $keyword) !== false) {
@@ -146,7 +147,7 @@ class SearchDocsTool extends Tool
             }
         }
 
-        if ($inRelevantSection && !empty(trim($currentSection))) {
+        if ($inRelevantSection && ! empty(trim($currentSection))) {
             $sections[] = trim($currentHeader."\n\n".$currentSection);
         }
 
