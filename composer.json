@@ -27,7 +27,8 @@
         "spatie/laravel-package-tools": "^1.14",
         "illuminate/contracts": "^11.0|^12.0",
         "laravilt/support": "^1.0",
-        "laravilt/query-builder": "^1.0"
+        "laravilt/query-builder": "^1.0",
+        "laravilt/forms": "^1.0"
     },
     "require-dev": {
         "larastan/larastan": "^2.9||^3.0",
