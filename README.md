@@ -1,4 +1,4 @@
-![Tables](./arts/screenshot.jpg)
+![tables](https://raw.githubusercontent.com/laravilt/tables/master/arts/screenshot.jpg)
 
 # Laravilt Tables
 

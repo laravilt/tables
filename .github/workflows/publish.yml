@@ -2,6 +2,9 @@ name: Publish to NPM
 
 on:
   push:
+    branches:
+      - master
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -19,41 +22,67 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js for npm
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@laravilt'
+
+      - name: Configure npm authentication
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - name: Install dependencies
         run: npm install
 
       - name: Bump version (if manual trigger)
         if: github.event_name == 'workflow_dispatch'
-        run: npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version
+          git add package.json
+          git commit -m "chore: bump version to $(node -p "require('./package.json').version")"
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Build package
         run: npm run build:npm
 
-      - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm registry
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          npm publish --access public
+
+      - name: Publish to GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          echo "registry=https://npm.pkg.github.com/" >> .npmrc
+          echo "@laravilt:registry=https://npm.pkg.github.com/" >> .npmrc
+          npm publish
 
       - name: Get package info
         id: package_info
         run: |
-          echo "name=$(node -p \"require('./package.json').name\")" >> $GITHUB_OUTPUT
-          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+          echo "name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.package_info.outputs.version }}
           name: v${{ steps.package_info.outputs.version }}
           body: |
             ## ${{ steps.package_info.outputs.name }} v${{ steps.package_info.outputs.version }}
@@ -67,13 +96,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit version bump (if manual trigger)
+      - name: Push version tag (if manual trigger)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add package.json
-          git commit -m "chore: bump version to ${{ steps.package_info.outputs.version }}"
           git tag "v${{ steps.package_info.outputs.version }}"
-          git push origin HEAD:${{ github.ref_name }}
           git push origin --tags

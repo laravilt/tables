@@ -16,11 +16,18 @@ export default defineConfig({
       fileName: (format) => `tables.${format}.js`,
     },
     rollupOptions: {
-      external: ['vue', '@inertiajs/vue3', /@laravilt\/.*/],
+      external: ['vue', '@inertiajs/vue3', 'radix-vue', 'reka-ui', 'lucide-vue-next', 'tailwind-merge', 'clsx', 'class-variance-authority', '@vueuse/core', /@laravilt\/.*/],
       output: {
         globals: {
           vue: 'Vue',
           '@inertiajs/vue3': 'InertiaVue3',
+          'radix-vue': 'RadixVue',
+          'reka-ui': 'RekaUI',
+          'lucide-vue-next': 'LucideVueNext',
+          'tailwind-merge': 'TailwindMerge',
+          clsx: 'clsx',
+          'class-variance-authority': 'ClassVarianceAuthority',
+          '@vueuse/core': 'VueUseCore',
         },
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === 'style.css') return 'style.css'
