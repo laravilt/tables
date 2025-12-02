@@ -5,6 +5,10 @@
 [![Latest Stable Version](https://poser.pugx.org/laravilt/tables/version.svg)](https://packagist.org/packages/laravilt/tables)
 [![License](https://poser.pugx.org/laravilt/tables/license.svg)](https://packagist.org/packages/laravilt/tables)
 [![Downloads](https://poser.pugx.org/laravilt/tables/d/total.svg)](https://packagist.org/packages/laravilt/tables)
+[![Dependabot Updates](https://github.com/laravilt/tables/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/laravilt/tables/actions/workflows/dependabot/dependabot-updates)
+[![PHP Code Styling](https://github.com/laravilt/tables/actions/workflows/fix-php-code-styling.yml/badge.svg)](https://github.com/laravilt/tables/actions/workflows/fix-php-code-styling.yml)
+[![Tests](https://github.com/laravilt/tables/actions/workflows/tests.yml/badge.svg)](https://github.com/laravilt/tables/actions/workflows/tests.yml)
+
 
 Complete table system with columns, filters, sorting, bulk actions, and pagination for Laravilt. Build powerful data tables with search, filters, inline editing, and row/bulk actions.
 
