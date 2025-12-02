@@ -1,0 +1,79 @@
+name: Publish to NPM
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bump version (if manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: npm version ${{ github.event.inputs.version_bump }} --no-git-tag-version
+
+      - name: Build package
+        run: npm run build:npm
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Get package info
+        id: package_info
+        run: |
+          echo "name=$(node -p \"require('./package.json').name\")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{ steps.package_info.outputs.version }}
+          body: |
+            ## ${{ steps.package_info.outputs.name }} v${{ steps.package_info.outputs.version }}
+
+            Published to npm: https://www.npmjs.com/package/${{ steps.package_info.outputs.name }}
+
+            Install with:
+            ```bash
+            npm install ${{ steps.package_info.outputs.name }}@${{ steps.package_info.outputs.version }}
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit version bump (if manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.package_info.outputs.version }}"
+          git tag "v${{ steps.package_info.outputs.version }}"
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin --tags
