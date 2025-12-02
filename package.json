@@ -86,7 +86,6 @@
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
-        "@laravilt/tables": "file:laravilt-tables-1.0.0.tgz",
         "tailwindcss": "^4.1.1"
     }
 }
