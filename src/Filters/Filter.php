@@ -3,8 +3,8 @@
 namespace Laravilt\Tables\Filters;
 
 use Closure;
-use Laravilt\Support\Component;
 use Laravilt\Forms\Components\Field;
+use Laravilt\Support\Component;
 
 abstract class Filter extends Component
 {
