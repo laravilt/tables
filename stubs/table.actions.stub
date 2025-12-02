@@ -1,0 +1,74 @@
+<?php
+
+namespace {{ namespace }};
+
+use Laravilt\Tables\Table;
+use Laravilt\Tables\Columns\TextColumn;
+use Laravilt\Tables\Columns\BadgeColumn;
+use Laravilt\Actions\Action;
+
+/**
+ * {{ class }} Table
+ *
+ * Custom table with actions for data manipulation.
+ */
+class {{ class }}
+{
+    /**
+     * Create the table configuration.
+     */
+    public static function make(): Table
+    {
+        return Table::make()
+            ->columns([
+                TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
+
+                TextColumn::make('name')
+                    ->label('Name')
+                    ->searchable()
+                    ->sortable(),
+
+                BadgeColumn::make('status')
+                    ->label('Status')
+                    ->sortable()
+                    ->color(fn ($value) => match($value) {
+                        'active' => 'success',
+                        'inactive' => 'danger',
+                        default => 'secondary',
+                    }),
+
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->sortable()
+                    ->date('M j, Y'),
+            ])
+            ->actions([
+                Action::make('edit')
+                    ->label('Edit')
+                    ->icon('pencil')
+                    ->color('primary')
+                    ->url(fn ($record) => route('{{ tableSnake }}.edit', $record)),
+
+                Action::make('delete')
+                    ->label('Delete')
+                    ->icon('trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(fn ($record) => $record->delete()),
+            ])
+            ->bulkActions([
+                Action::make('delete')
+                    ->label('Delete Selected')
+                    ->icon('trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(fn ($records) => $records->each->delete()),
+            ])
+            ->searchable()
+            ->paginated()
+            ->perPage(15)
+            ->defaultSort('created_at', 'desc');
+    }
+}

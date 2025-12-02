@@ -1,13 +1,20 @@
 {
     "name": "laravilt/tables",
-    "description": "plugin for Laravilt",
+    "description": "Complete table system with columns, filters, sorting, bulk actions, and pagination. Build powerful data tables with search, filters, inline editing, row/bulk actions, and responsive mobile-friendly layouts.",
     "version": "1.0.0",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "laravel",
         "laravilt",
-        "plugin"
+        "tables",
+        "data-tables",
+        "columns",
+        "filters",
+        "sorting",
+        "bulk-actions",
+        "inertia",
+        "vue"
     ],
     "authors": [
         {

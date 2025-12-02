@@ -49,6 +49,7 @@ class TablesServiceProvider extends ServiceProvider
             // Register commands
             $this->commands([
                 Commands\InstallTablesCommand::class,
+                Commands\MakeTableCommand::class,
             ]);
         }
     }

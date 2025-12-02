@@ -1,0 +1,63 @@
+<?php
+
+namespace {{ namespace }};
+
+use Laravilt\Tables\Table;
+use Laravilt\Tables\Columns\TextColumn;
+use Laravilt\Tables\Columns\ImageColumn;
+use Laravilt\Tables\Columns\BadgeColumn;
+
+/**
+ * {{ class }} Table
+ *
+ * Custom table for displaying tabular data.
+ */
+class {{ class }}
+{
+    /**
+     * Create the table configuration.
+     */
+    public static function make(): Table
+    {
+        return Table::make()
+            ->columns([
+                TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
+
+                ImageColumn::make('image')
+                    ->label('Image')
+                    ->circular()
+                    ->size(40),
+
+                TextColumn::make('name')
+                    ->label('Name')
+                    ->searchable()
+                    ->sortable()
+                    ->copyable(),
+
+                TextColumn::make('email')
+                    ->label('Email')
+                    ->searchable()
+                    ->copyable(),
+
+                BadgeColumn::make('status')
+                    ->label('Status')
+                    ->sortable()
+                    ->color(fn ($value) => match($value) {
+                        'active' => 'success',
+                        'inactive' => 'danger',
+                        default => 'secondary',
+                    }),
+
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->sortable()
+                    ->date('M j, Y'),
+            ])
+            ->searchable()
+            ->paginated()
+            ->perPage(15)
+            ->defaultSort('created_at', 'desc');
+    }
+}
