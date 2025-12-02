@@ -1,0 +1,63 @@
+# Development files
+node_modules
+.env
+.env.*
+!.env.example
+
+# Build files
+.vite
+vite.config.ts.timestamp-*
+
+# Testing
+tests
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage
+.nyc_output
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# PHP/Composer files
+vendor
+composer.json
+composer.lock
+phpunit.xml
+phpunit.xml.dist
+.phpunit.result.cache
+
+# Laravel specific
+bootstrap/cache
+storage
+database
+routes
+config
+.artisan
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation source
+docs
+
+# Source maps
+*.map
+
+# Lock files (optional - you might want to include these)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
