@@ -18,6 +18,8 @@ class TextColumn extends Column
 
     protected ?string $dateFormat = null;
 
+    protected bool $since = false;
+
     protected ?string $icon = null;
 
     protected ?string $weight = null;
@@ -71,6 +73,13 @@ class TextColumn extends Column
     public function date(?string $format = 'Y-m-d'): static
     {
         $this->dateFormat = $format;
+
+        return $this;
+    }
+
+    public function since(bool $condition = true): static
+    {
+        $this->since = $condition;
 
         return $this;
     }
@@ -134,6 +143,7 @@ class TextColumn extends Column
             'moneyFormat' => $this->moneyFormat ? json_decode($this->moneyFormat, true) : null,
             'colorCallback' => $this->colorCallback !== null,
             'html' => $this->html,
+            'since' => $this->since,
         ];
     }
 

@@ -2,78 +2,65 @@
 import { computed, ref, watch } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, SlidersHorizontal, X, Columns3, Eye, EyeOff } from 'lucide-vue-next'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Search, SlidersHorizontal, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-vue-next'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-
-interface Column {
-  name: string
-  label: string
-  toggleable?: boolean
-  [key: string]: any
-}
-
-interface Filter {
-  name: string
-  label: string
-  component: string
-  [key: string]: any
-}
 
 interface FilterIndicator {
   label: string
   removeField: string
 }
 
-interface TableToolbarProps {
+interface GridToolbarProps {
   searchable?: boolean
   searchPlaceholder?: string
   search?: string
-  filters?: Filter[]
+  filters?: any[]
   activeFilters?: Record<string, any>
   filterIndicators?: FilterIndicator[]
-  columns?: Column[]
-  visibleColumns?: string[]
   bulkActionsAvailable?: boolean
   selectedCount?: number
+  columns?: any[]
+  sortColumn?: string | null
+  sortDirection?: 'asc' | 'desc'
 }
 
-const props = withDefaults(defineProps<TableToolbarProps>(), {
+const props = withDefaults(defineProps<GridToolbarProps>(), {
   searchable: true,
   searchPlaceholder: 'Search...',
   search: '',
   filters: () => [],
   activeFilters: () => ({}),
   filterIndicators: () => [],
-  columns: () => [],
-  visibleColumns: () => [],
   bulkActionsAvailable: false,
   selectedCount: 0,
+  columns: () => [],
+  sortColumn: null,
+  sortDirection: 'asc',
 })
 
 const emit = defineEmits<{
   'update:search': [value: string]
   'update:filters': [filters: Record<string, any>]
-  'update:visibleColumns': [columns: string[]]
   'removeFilter': [filterName: string]
   clearFilters: []
+  'update:sort': [column: string, direction: 'asc' | 'desc']
 }>()
 
 const localSearch = ref(props.search)
 
-// Update local search when prop changes (e.g., from clear button)
 watch(() => props.search, (newValue) => {
   localSearch.value = newValue
 })
@@ -81,10 +68,6 @@ watch(() => props.search, (newValue) => {
 const handleSearchSubmit = () => {
   emit('update:search', localSearch.value)
 }
-
-const toggleableColumns = computed(() =>
-  props.columns.filter((col) => col.toggleable !== false)
-)
 
 const activeFilterCount = computed(() => {
   return Object.values(props.activeFilters).filter(
@@ -122,28 +105,30 @@ const computedFilterIndicators = computed(() => {
   return indicators
 })
 
-const isColumnVisible = (columnName: string) => {
-  if (props.visibleColumns.length === 0) return true
-  return props.visibleColumns.includes(columnName)
-}
+const sortableColumns = computed(() => {
+  return props.columns.filter(col => col.sortable)
+})
 
-const toggleColumn = (columnName: string) => {
-  let newVisibleColumns: string[]
+const currentSortLabel = computed(() => {
+  if (!props.sortColumn) return 'Sort by...'
+  const column = sortableColumns.value.find(col => col.name === props.sortColumn)
+  return column ? column.label : 'Sort by...'
+})
 
-  // If starting from "show all" state (empty array), initialize with all columns
-  if (props.visibleColumns.length === 0) {
-    // User is hiding a column, so start with all columns except this one
-    newVisibleColumns = props.columns
-      .map((col) => col.name)
-      .filter((name) => name !== columnName)
-  } else {
-    // Toggle column in existing array
-    newVisibleColumns = isColumnVisible(columnName)
-      ? props.visibleColumns.filter((name) => name !== columnName)
-      : [...props.visibleColumns, columnName]
+const sortIcon = computed(() => {
+  if (!props.sortColumn) return ArrowUpDown
+  return props.sortDirection === 'asc' ? ArrowUp : ArrowDown
+})
+
+const handleSortChange = (columnName: string) => {
+  let direction: 'asc' | 'desc' = 'asc'
+
+  if (props.sortColumn === columnName) {
+    // Toggle direction if same column
+    direction = props.sortDirection === 'asc' ? 'desc' : 'asc'
   }
 
-  emit('update:visibleColumns', newVisibleColumns)
+  emit('update:sort', columnName, direction)
 }
 
 const clearSearch = () => {
@@ -165,7 +150,7 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
 
 <template>
   <div class="flex flex-col gap-3 bg-card">
-    <!-- Bulk Actions Bar (when items are selected) -->
+    <!-- Bulk Actions Bar -->
     <div v-if="bulkActionsAvailable && selectedCount > 0" class="flex items-center gap-3 bg-primary/10 dark:bg-primary/20 px-4 py-3 border-b border-primary/30">
       <span class="text-sm font-medium text-foreground">{{ selectedCount }} selected</span>
       <div class="flex items-center gap-2">
@@ -173,7 +158,7 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
       </div>
     </div>
 
-    <!-- Top Row: Search, Filters, Column Toggle -->
+    <!-- Top Row: Search and Filters -->
     <div class="flex items-center gap-2 flex-nowrap px-4 py-3 border-b border-border">
       <!-- Search -->
       <div v-if="searchable" class="relative w-full max-w-sm shrink-0">
@@ -195,6 +180,40 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
       </div>
 
       <div class="flex items-center gap-2 ml-auto shrink-0">
+        <!-- Sort Button -->
+        <Popover v-if="sortableColumns.length > 0">
+          <PopoverTrigger as-child>
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
+              <component :is="sortIcon" class="h-4 w-4" />
+              {{ currentSortLabel }}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" class="w-[280px]">
+            <div class="space-y-2">
+              <h4 class="text-sm font-semibold mb-3">Sort by</h4>
+              <div class="space-y-1">
+                <button
+                  v-for="column in sortableColumns"
+                  :key="column.name"
+                  @click="handleSortChange(column.name)"
+                  class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors"
+                  :class="sortColumn === column.name
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'hover:bg-muted'
+                  "
+                >
+                  <span>{{ column.label }}</span>
+                  <component
+                    v-if="sortColumn === column.name"
+                    :is="sortDirection === 'asc' ? ArrowUp : ArrowDown"
+                    class="h-4 w-4"
+                  />
+                </button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <!-- Filters Button -->
         <Popover v-if="filters.length > 0">
           <PopoverTrigger as-child>
@@ -227,34 +246,6 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
           </PopoverContent>
         </Popover>
 
-        <!-- Column Toggle -->
-        <DropdownMenu v-if="toggleableColumns.length > 0">
-          <DropdownMenuTrigger as-child>
-            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
-              <Columns3 class="h-4 w-4" />
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-64">
-            <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              v-for="column in toggleableColumns"
-              :key="column.name"
-              :checked="isColumnVisible(column.name)"
-              @click.prevent="toggleColumn(column.name)"
-              class="gap-2"
-            >
-              <component
-                :is="isColumnVisible(column.name) ? Eye : EyeOff"
-                class="h-4 w-4 shrink-0"
-                :class="isColumnVisible(column.name) ? 'text-primary' : 'text-muted-foreground'"
-              />
-              <span class="flex-1">{{ column.label }}</span>
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <!-- Toolbar Actions Slot -->
         <slot name="toolbar-actions" />
       </div>
@@ -271,7 +262,6 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
         </button>
       </Badge>
 
-      <!-- Computed filter indicators with individual removal -->
       <Badge
         v-for="(indicator, index) in computedFilterIndicators"
         :key="index"

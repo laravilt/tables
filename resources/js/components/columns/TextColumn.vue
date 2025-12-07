@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Copy } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import { useNotification } from '@laravilt/notifications/composables/useNotification'
@@ -23,6 +24,15 @@ interface TextColumnProps {
   description?: string | null
   descriptionPosition?: 'above' | 'below'
   html?: boolean
+  // New FilamentPHP v4 compatible props
+  alignment?: 'start' | 'center' | 'end' | 'justify'
+  tooltip?: string | null
+  url?: string | null
+  openUrlInNewTab?: boolean
+  prefix?: string | null
+  suffix?: string | null
+  grow?: boolean
+  size?: 'xs' | 'sm' | 'base' | 'lg' | 'xl' | null
 }
 
 const props = withDefaults(defineProps<TextColumnProps>(), {
@@ -39,6 +49,14 @@ const props = withDefaults(defineProps<TextColumnProps>(), {
   description: null,
   descriptionPosition: 'below',
   html: false,
+  alignment: 'start',
+  tooltip: null,
+  url: null,
+  openUrlInNewTab: false,
+  prefix: null,
+  suffix: null,
+  grow: false,
+  size: null,
 })
 
 // Check if value is an array (for badge rendering of many-to-many relationships)
@@ -192,17 +210,156 @@ const weightClass = computed(() => {
       return ''
   }
 })
+
+const alignmentClass = computed(() => {
+  switch (props.alignment) {
+    case 'start':
+      return 'text-start'
+    case 'center':
+      return 'text-center'
+    case 'end':
+      return 'text-end'
+    case 'justify':
+      return 'text-justify'
+    default:
+      return 'text-start'
+  }
+})
+
+const sizeClass = computed(() => {
+  switch (props.size) {
+    case 'xs':
+      return 'text-xs'
+    case 'sm':
+      return 'text-sm'
+    case 'base':
+      return 'text-base'
+    case 'lg':
+      return 'text-lg'
+    case 'xl':
+      return 'text-xl'
+    default:
+      return ''
+  }
+})
+
+const containerClass = computed(() => {
+  return [
+    'flex flex-col gap-1',
+    props.grow ? 'flex-1' : '',
+    alignmentClass.value,
+  ].filter(Boolean).join(' ')
+})
+
+// Combine prefix and suffix with value
+const displayValue = computed(() => {
+  const value = formattedValue.value
+  if (!value) return value
+
+  let result = value
+  if (props.prefix) result = props.prefix + result
+  if (props.suffix) result = result + props.suffix
+  return result
+})
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
+  <div :class="containerClass">
     <!-- Description above -->
     <div v-if="description && descriptionPosition === 'above'" class="text-[11px] text-muted-foreground/70">
       {{ description }}
     </div>
 
-    <!-- Main content -->
-    <div class="flex items-start gap-2">
+    <!-- Wrap with tooltip if provided -->
+    <TooltipProvider v-if="tooltip">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <component
+            :is="url ? 'a' : 'div'"
+            :href="url || undefined"
+            :target="url && openUrlInNewTab ? '_blank' : undefined"
+            :rel="url && openUrlInNewTab ? 'noopener noreferrer' : undefined"
+            :class="[
+              'flex items-start gap-2',
+              url ? 'hover:underline cursor-pointer text-primary' : '',
+            ]"
+          >
+            <!-- Content goes here (duplicated for tooltip wrapper) -->
+            <component
+              :is="lucideIconComponent"
+              v-if="lucideIconComponent && !badge"
+              class="h-4 w-4 shrink-0 mt-0.5"
+            />
+
+            <div v-if="badge && isArray" class="flex flex-wrap gap-1.5">
+              <Badge
+                v-for="(item, index) in value"
+                :key="index"
+                :variant="badgeVariant"
+                class="font-normal flex items-center gap-1.5"
+              >
+                <component
+                  :is="lucideIconComponent"
+                  v-if="lucideIconComponent"
+                  class="h-3 w-3 shrink-0"
+                />
+                {{ item }}
+              </Badge>
+            </div>
+
+            <Badge v-else-if="badge" :variant="badgeVariant" class="font-normal flex items-center gap-1.5">
+              <component
+                :is="lucideIconComponent"
+                v-if="lucideIconComponent"
+                class="h-3 w-3 shrink-0"
+              />
+              {{ displayValue }}
+            </Badge>
+
+            <div
+              v-else-if="html"
+              :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']"
+              v-html="displayValue"
+            />
+
+            <pre
+              v-else-if="isObjectOrArray && !badge"
+              :class="['text-xs bg-muted/50 rounded px-2 py-1 overflow-x-auto', weightClass]"
+            ><code>{{ displayValue }}</code></pre>
+
+            <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']">
+              {{ displayValue }}
+            </span>
+
+            <Button
+              v-if="copyable"
+              variant="ghost"
+              size="icon"
+              class="h-6 w-6 shrink-0"
+              @click.stop.prevent="handleCopy"
+            >
+              <Copy class="h-3 w-3" />
+            </Button>
+          </component>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{{ tooltip }}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+
+    <!-- Main content without tooltip -->
+    <component
+      v-else
+      :is="url ? 'a' : 'div'"
+      :href="url || undefined"
+      :target="url && openUrlInNewTab ? '_blank' : undefined"
+      :rel="url && openUrlInNewTab ? 'noopener noreferrer' : undefined"
+      :class="[
+        'flex items-start gap-2',
+        url ? 'hover:underline cursor-pointer text-primary' : '',
+      ]"
+    >
       <!-- Icon outside badge when not using badge -->
       <component
         :is="lucideIconComponent"
@@ -234,37 +391,25 @@ const weightClass = computed(() => {
           v-if="lucideIconComponent"
           class="h-3 w-3 shrink-0"
         />
-        {{ formattedValue }}
+        {{ displayValue }}
       </Badge>
 
       <!-- HTML content -->
       <div
         v-else-if="html"
-        :class="[
-          weightClass,
-          wrap ? 'whitespace-normal' : 'truncate',
-        ]"
-        v-html="formattedValue"
+        :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']"
+        v-html="displayValue"
       />
 
       <!-- JSON/Object/Array formatting -->
       <pre
         v-else-if="isObjectOrArray && !badge"
-        :class="[
-          'text-xs bg-muted/50 rounded px-2 py-1 overflow-x-auto',
-          weightClass,
-        ]"
-      ><code>{{ formattedValue }}</code></pre>
+        :class="['text-xs bg-muted/50 rounded px-2 py-1 overflow-x-auto', weightClass]"
+      ><code>{{ displayValue }}</code></pre>
 
       <!-- Regular text -->
-      <span
-        v-else
-        :class="[
-          weightClass,
-          wrap ? 'whitespace-normal' : 'truncate',
-        ]"
-      >
-        {{ formattedValue }}
+      <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']">
+        {{ displayValue }}
       </span>
 
       <Button
@@ -272,11 +417,11 @@ const weightClass = computed(() => {
         variant="ghost"
         size="icon"
         class="h-6 w-6 shrink-0"
-        @click="handleCopy"
+        @click.stop.prevent="handleCopy"
       >
         <Copy class="h-3 w-3" />
       </Button>
-    </div>
+    </component>
 
     <!-- Description below -->
     <div v-if="description && descriptionPosition === 'below'" class="text-[11px] text-muted-foreground/70">

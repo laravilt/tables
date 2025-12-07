@@ -3,12 +3,15 @@
 namespace Laravilt\Tables\Columns;
 
 use Closure;
+use Laravilt\Support\Enums\ImageSize;
 
 class ImageColumn extends Column
 {
     protected string|int|Closure|null $imageWidth = null;
 
     protected string|int|Closure|null $imageHeight = null;
+
+    protected ImageSize|Closure $imageColumnSize = ImageSize::Small;
 
     protected bool|Closure $square = false;
 
@@ -60,6 +63,22 @@ class ImageColumn extends Column
         $this->imageHeight = $size;
 
         return $this;
+    }
+
+    public function columnSize(ImageSize|Closure $size): static
+    {
+        $this->imageColumnSize = $size;
+
+        return $this;
+    }
+
+    public function getImageColumnSize(): ImageSize
+    {
+        if ($this->imageColumnSize instanceof Closure) {
+            return ($this->imageColumnSize)();
+        }
+
+        return $this->imageColumnSize;
     }
 
     public function square(bool|Closure $condition = true): static
@@ -170,10 +189,14 @@ class ImageColumn extends Column
 
     protected function getVueProps(): array
     {
+        $imageSize = $this->getImageColumnSize();
+
         return [
             ...parent::getVueProps(),
-            'imageWidth' => $this->imageWidth,
-            'imageHeight' => $this->imageHeight,
+            'size' => $imageSize->value,
+            'sizePixels' => $imageSize->getSize(),
+            'imageWidth' => $this->imageWidth ?? $imageSize->getSize(),
+            'imageHeight' => $this->imageHeight ?? $imageSize->getSize(),
             'square' => $this->square,
             'circular' => $this->circular,
             'stacked' => $this->stacked,

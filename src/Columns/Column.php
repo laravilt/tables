@@ -15,9 +15,122 @@ abstract class Column extends Component
 
     protected bool $toggleable = true;
 
+    protected bool $isToggledHiddenByDefault = false;
+
     protected string|Closure|null $description = null;
 
     protected string $descriptionPosition = 'below';
+
+    protected string $alignment = 'start';
+
+    protected string|Closure|null $tooltip = null;
+
+    protected string|Closure|null $url = null;
+
+    protected bool $openUrlInNewTab = false;
+
+    protected ?string $prefix = null;
+
+    protected ?string $suffix = null;
+
+    protected bool $grow = false;
+
+    protected ?string $size = null;
+
+    public function alignment(string $alignment): static
+    {
+        $this->alignment = $alignment;
+
+        return $this;
+    }
+
+    public function alignStart(): static
+    {
+        return $this->alignment('start');
+    }
+
+    public function alignCenter(): static
+    {
+        return $this->alignment('center');
+    }
+
+    public function alignEnd(): static
+    {
+        return $this->alignment('end');
+    }
+
+    public function alignJustify(): static
+    {
+        return $this->alignment('justify');
+    }
+
+    public function tooltip(string|Closure|null $tooltip): static
+    {
+        $this->tooltip = $tooltip;
+
+        return $this;
+    }
+
+    public function url(string|Closure|null $url, bool $openInNewTab = false): static
+    {
+        $this->url = $url;
+        $this->openUrlInNewTab = $openInNewTab;
+
+        return $this;
+    }
+
+    public function openUrlInNewTab(bool $condition = true): static
+    {
+        $this->openUrlInNewTab = $condition;
+
+        return $this;
+    }
+
+    public function prefix(?string $prefix): static
+    {
+        $this->prefix = $prefix;
+
+        return $this;
+    }
+
+    public function suffix(?string $suffix): static
+    {
+        $this->suffix = $suffix;
+
+        return $this;
+    }
+
+    public function grow(bool $condition = true): static
+    {
+        $this->grow = $condition;
+
+        return $this;
+    }
+
+    public function size(?string $size): static
+    {
+        $this->size = $size;
+
+        return $this;
+    }
+
+    public function evaluateTooltip(mixed $state, mixed $record = null): ?string
+    {
+        if ($this->tooltip instanceof Closure) {
+            return ($this->tooltip)($state, $record);
+        }
+
+        return $this->tooltip;
+    }
+
+    public function evaluateUrl(mixed $state, mixed $record = null): ?string
+    {
+        if ($this->url instanceof Closure) {
+            return ($this->url)($state, $record);
+        }
+
+        return $this->url;
+    }
 
     public function sortable(bool $condition = true): static
     {
@@ -43,10 +156,7 @@ abstract class Column extends Component
     public function toggleable(bool $condition = true, bool $isToggledHiddenByDefault = false): static
     {
         $this->toggleable = $condition;
-
-        if ($isToggledHiddenByDefault) {
-            $this->visible = false;
-        }
+        $this->isToggledHiddenByDefault = $isToggledHiddenByDefault;
 
         return $this;
     }
@@ -136,7 +246,16 @@ abstract class Column extends Component
             'sortable' => $this->sortable,
             'searchable' => $this->searchable,
             'toggleable' => $this->toggleable,
+            'isToggledHiddenByDefault' => $this->isToggledHiddenByDefault,
             'descriptionPosition' => $this->descriptionPosition,
+            'alignment' => $this->alignment,
+            'hasTooltip' => $this->tooltip !== null,
+            'hasUrl' => $this->url !== null,
+            'openUrlInNewTab' => $this->openUrlInNewTab,
+            'prefix' => $this->prefix,
+            'suffix' => $this->suffix,
+            'grow' => $this->grow,
+            'size' => $this->size,
         ];
     }
 
@@ -147,6 +266,14 @@ abstract class Column extends Component
             'searchable' => $this->searchable,
             'toggleable' => $this->toggleable,
             'descriptionPosition' => $this->descriptionPosition,
+            'alignment' => $this->alignment,
+            'hasTooltip' => $this->tooltip !== null,
+            'hasUrl' => $this->url !== null,
+            'openUrlInNewTab' => $this->openUrlInNewTab,
+            'prefix' => $this->prefix,
+            'suffix' => $this->suffix,
+            'grow' => $this->grow,
+            'size' => $this->size,
         ];
     }
 }

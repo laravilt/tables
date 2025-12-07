@@ -48,9 +48,13 @@ interface DataTableProps {
   executionRoute?: string
   clearSelections?: number
   fixedActions?: boolean
+  striped?: boolean
+  infiniteScroll?: boolean
 }
 
 const props = withDefaults(defineProps<DataTableProps>(), {
+  columns: () => [],
+  records: () => [],
   loading: false,
   skeletonRows: 10,
   sortColumn: null,
@@ -62,6 +66,8 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   executionRoute: undefined,
   clearSelections: 0,
   fixedActions: false,
+  striped: false,
+  infiniteScroll: false,
 })
 
 const emit = defineEmits<{
@@ -148,6 +154,11 @@ const getSortIcon = (column: Column) => {
   return ArrowUpDown
 }
 
+// Check if any record has actions
+const hasRecordActions = computed(() => {
+  return props.records.some((record) => record._actions && record._actions.length > 0)
+})
+
 // Get component for column type
 const getColumnComponent = (columnType: string) => {
   switch (columnType) {
@@ -168,8 +179,8 @@ const getColumnComponent = (columnType: string) => {
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden rounded-lg border border-border bg-card">
-    <!-- Empty State (shown outside scroll container) -->
+  <div class="relative w-full bg-card">
+    <!-- Empty State -->
     <div v-if="!loading && !records.length" class="w-full">
       <div class="py-20 px-4">
         <slot name="empty">
@@ -187,10 +198,10 @@ const getColumnComponent = (columnType: string) => {
     </div>
 
     <!-- Table Content (only show when there are records or loading) -->
-    <div v-else class="overflow-x-auto custom-scrollbar">
-      <div class="inline-block min-w-full align-middle">
-        <!-- Table Header -->
-        <div class="border-b border-border bg-muted/50">
+    <div v-else>
+      <div>
+        <!-- Table Header (Sticky at top when scrolling) -->
+        <div class="border-b border-border bg-muted/50 sticky top-0 z-10">
           <div class="flex items-center">
             <!-- Checkbox Column (if bulk actions available) -->
             <div
@@ -245,13 +256,13 @@ const getColumnComponent = (columnType: string) => {
             </div>
 
             <!-- Fixed Actions Header -->
-            <div v-if="fixedActions && recordActions.length > 0" class="sticky right-0 z-10 border-l border-border bg-muted flex items-center justify-end px-4 py-3.5 shrink-0 min-w-[180px]">
+            <div v-if="fixedActions && hasRecordActions" class="sticky right-0 z-10 border-l border-border bg-muted flex items-center justify-end px-4 py-3.5 shrink-0 min-w-[180px]">
               <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</span>
             </div>
           </div>
         </div>
 
-        <!-- Table Body -->
+        <!-- Table Body (no scroll - parent TableRenderer handles scrolling) -->
         <div class="divide-y divide-border">
           <!-- Loading State -->
           <template v-if="loading">
@@ -288,7 +299,7 @@ const getColumnComponent = (columnType: string) => {
 
                 <!-- Fixed Actions Skeleton -->
                 <div
-                  v-if="fixedActions && recordActions.length > 0"
+                  v-if="fixedActions && hasRecordActions"
                   class="sticky right-0 z-10 border-l border-border flex items-center justify-end gap-1.5 px-4 py-4 self-stretch shrink-0 min-w-[180px]"
                   :class="[
                     i % 2 === 0 ? 'bg-muted/20' : 'bg-card'
@@ -317,7 +328,7 @@ const getColumnComponent = (columnType: string) => {
               :key="record.id"
               class="group transition-colors hover:bg-muted/30"
               :class="[
-                index % 2 === 0 ? 'bg-card' : 'bg-muted/20',
+                striped ? (index % 2 === 0 ? 'bg-card' : 'bg-muted/20') : 'bg-card',
                 selectedRecords.has(record.id) && 'bg-primary/5',
               ]"
             >
@@ -373,10 +384,10 @@ const getColumnComponent = (columnType: string) => {
                   </div>
 
                   <!-- Inline Actions (when not fixed) -->
-                  <div v-if="!fixedActions && recordActions.length > 0" class="px-4 py-4 flex items-center justify-end min-w-[180px] ml-auto">
+                  <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-4 py-4 flex items-center justify-end min-w-[180px] ml-auto">
                     <slot name="actions" :record="record">
                       <RecordActions
-                        :actions="recordActions"
+                        :actions="record._actions"
                         :record="record"
                         :resource-name="resourceSlug"
                         :execution-route="executionRoute"
@@ -388,7 +399,7 @@ const getColumnComponent = (columnType: string) => {
 
                 <!-- Fixed Actions Cell -->
                 <div
-                  v-if="fixedActions && recordActions.length > 0"
+                  v-if="fixedActions && record._actions && record._actions.length > 0"
                   class="sticky right-0 z-10 border-l border-border transition-colors flex items-center justify-end gap-1.5 px-4 self-stretch shrink-0 min-w-[180px]"
                   :class="[
                     index % 2 === 0 ? 'bg-card group-hover:bg-muted' : 'bg-muted group-hover:bg-muted',
@@ -397,8 +408,7 @@ const getColumnComponent = (columnType: string) => {
                 >
                   <slot name="actions" :record="record">
                     <RecordActions
-                      v-if="recordActions && recordActions.length > 0"
-                      :actions="recordActions"
+                      :actions="record._actions"
                       :record="record"
                       :resource-name="resourceSlug"
                       :execution-route="executionRoute"

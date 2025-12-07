@@ -10,7 +10,7 @@ class IconColumn extends Column
 
     protected string|Closure|null $color = null;
 
-    protected string|Closure $size = 'large';
+    protected string|Closure|null $iconSize = 'large';
 
     protected bool $boolean = false;
 
@@ -38,9 +38,9 @@ class IconColumn extends Column
         return $this;
     }
 
-    public function size(string|Closure $size): static
+    public function iconSize(string|Closure|null $size): static
     {
-        $this->size = $size;
+        $this->iconSize = $size;
 
         return $this;
     }
@@ -164,9 +164,9 @@ class IconColumn extends Column
         return null;
     }
 
-    public function evaluateSize(mixed $state, mixed $record = null): string
+    public function evaluateIconSize(mixed $state, mixed $record = null): ?string
     {
-        return $this->evaluate($this->size, ['state' => $state, 'record' => $record]);
+        return $this->evaluate($this->iconSize, ['state' => $state, 'record' => $record]);
     }
 
     protected function evaluate(mixed $value, array $parameters = []): mixed
