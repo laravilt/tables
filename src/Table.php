@@ -654,7 +654,7 @@ class Table implements InertiaSerializable
         $sortDirection = request()->query('direction', $this->defaultSortDirection);
 
         // Validate sort direction - only accept 'asc' or 'desc'
-        if (!in_array($sortDirection, ['asc', 'desc'])) {
+        if (! in_array($sortDirection, ['asc', 'desc'])) {
             $sortDirection = 'asc';
         }
 
