@@ -2,20 +2,20 @@
   "cookies": [
     {
       "name": "XSRF-TOKEN",
-      "value": "eyJpdiI6Ik9Ea3h2NTVGelhyTVZoZ3hSQmRTOVE9PSIsInZhbHVlIjoiZThiNUxtMGc0OHNKUzcvR3hjbFpWYW5hYkJyRzhKWW1YYnQ0SG5iandpRjh4dmRlNkZTNGJHSHNKMDM3Z2YrUVNZVTVuY0pOZzgxSHR4ajJqemtKSmJOV29LQU1RSGk2eHZSOUdPQUN1Z2QxTTlodTE3U2RwWmM0STFtUEppZzkiLCJtYWMiOiI0YTVhNjQyNmVhODlmODkxY2IyYzNlNDc2OGViODliMDNlMGUxNGM3MWJmYjdkOWEzNzcwOWE5NzYzYzU0YWM1IiwidGFnIjoiIn0%3D",
+      "value": "eyJpdiI6Im9vb1FpZlUwY0VsQkxYOTgvNzdyemc9PSIsInZhbHVlIjoiOHpHa25WWSs2UDlEUERTMDl1dFNZTWdxQVVyY0ZNby9KU2V2b1orcThWVFc4bkN2QmE5cnpXZGhJdFZNbDJHWURrNEtXdDA5MEFwYVYxL3FFQVI5VVVHa2I4UThMUEFnNkNRU0Q5a0dBTy82L3FJLzRTMEN3OEhpQjRXZVc4alAiLCJtYWMiOiI3ZmI1ZjNjYTMyMWQwMzIxY2Y2ZDcwMjAyNTFhODFkNzlhOTQ4M2QzOTM4NjUxOTYzNDNlMGI0YmQxMmY0YWQwIiwidGFnIjoiIn0%3D",
       "domain": "laravilt.test",
       "path": "/",
-      "expires": 1765043580.575367,
+      "expires": 1765190525.277955,
       "httpOnly": false,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "laravel-session",
-      "value": "eyJpdiI6InM3Vis2WlRKNlluRHJGUzg0L1hlMWc9PSIsInZhbHVlIjoieHFSY2xaVXZwN0R6REdwcDVGNXBJcHZDb0FxVk82bUJmZ0xyNXpFcW1MVDQySkdibXR2MVhGaDFWYWlyRXUwbTJud1JhRi93N3lxbU5BMUh0Wm5sdjlEZHUxcm5RMnE1czlSRWRRNVVxdzNsR0l1MXRrY1QrOXdIdEQ1a1NUUkUiLCJtYWMiOiJmM2ZmNTk2ZDYwN2Y3MDNlYzkwMTE0OTExYjMwNDQ5Mzc3ZjIyMDk5ZmE0N2M2ODVjY2ZiZjYwZTY0NDM5MzhlIiwidGFnIjoiIn0%3D",
+      "value": "eyJpdiI6InVTSUVyN1A1MXNyZ2hpcEx1S0lQREE9PSIsInZhbHVlIjoiL0FiZFpHTmNDK0RsS1ZTOHVPU285T0c4K1VFdms0TjMvV2kzaGtLeTlab203MnRQYjdNUmFQcUR3N3NDYjBtS0EwQUUxUzlGUWgxZjdnZHFYNWNyZDM5U0VXY0laUTl4dnUyVnhPNmNkaEY0TGNtaldnakgzR3BNSXkwdzZFUC8iLCJtYWMiOiJkZDRkMTY2M2I3M2EyMDVhYzkzYjgxYTZjMzFhNDBlYTM5NTI2ZDk3OWZmNTAxOWEzZDU5YTNkN2Q4NDRhMWMyIiwidGFnIjoiIn0%3D",
       "domain": "laravilt.test",
       "path": "/",
-      "expires": 1765043580.575405,
+      "expires": 1765190525.277994,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"

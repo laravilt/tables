@@ -191,26 +191,50 @@ class ImageColumn extends Column
     {
         $imageSize = $this->getImageColumnSize();
 
+        // Safely extract non-closure values for serialization
+        $imageWidth = $this->imageWidth instanceof Closure ? null : ($this->imageWidth ?? $imageSize->getSize());
+        $imageHeight = $this->imageHeight instanceof Closure ? null : ($this->imageHeight ?? $imageSize->getSize());
+        $square = $this->square instanceof Closure ? false : $this->square;
+        $circular = $this->circular instanceof Closure ? false : $this->circular;
+        $stacked = $this->stacked instanceof Closure ? false : $this->stacked;
+        $ring = $this->ring instanceof Closure ? 3 : $this->ring;
+        $overlap = $this->overlap instanceof Closure ? 4 : $this->overlap;
+        $limit = $this->limit instanceof Closure ? null : $this->limit;
+        $limitedRemainingText = $this->limitedRemainingText instanceof Closure ? false : $this->limitedRemainingText;
+        $limitedRemainingTextSize = $this->limitedRemainingTextSize instanceof Closure ? 'sm' : $this->limitedRemainingTextSize;
+        $wrap = $this->wrap instanceof Closure ? false : $this->wrap;
+        $disk = $this->disk instanceof Closure ? null : $this->disk;
+        $visibility = $this->visibility instanceof Closure ? null : $this->visibility;
+        $defaultImageUrl = $this->defaultImageUrl instanceof Closure ? null : $this->defaultImageUrl;
+        $checkFileExistence = $this->checkFileExistence instanceof Closure ? true : $this->checkFileExistence;
+        $extraImgAttributes = $this->extraImgAttributes instanceof Closure ? [] : $this->extraImgAttributes;
+
         return [
             ...parent::getVueProps(),
             'size' => $imageSize->value,
             'sizePixels' => $imageSize->getSize(),
-            'imageWidth' => $this->imageWidth ?? $imageSize->getSize(),
-            'imageHeight' => $this->imageHeight ?? $imageSize->getSize(),
-            'square' => $this->square,
-            'circular' => $this->circular,
-            'stacked' => $this->stacked,
-            'ring' => $this->ring,
-            'overlap' => $this->overlap,
-            'limit' => $this->limit,
-            'limitedRemainingText' => $this->limitedRemainingText,
-            'limitedRemainingTextSize' => $this->limitedRemainingTextSize,
-            'wrap' => $this->wrap,
-            'disk' => $this->disk,
-            'visibility' => $this->visibility,
-            'defaultImageUrl' => $this->defaultImageUrl,
-            'checkFileExistence' => $this->checkFileExistence,
-            'extraImgAttributes' => $this->extraImgAttributes,
+            'imageWidth' => $imageWidth,
+            'imageHeight' => $imageHeight,
+            'square' => $square,
+            'circular' => $circular,
+            'stacked' => $stacked,
+            'ring' => $ring,
+            'overlap' => $overlap,
+            'limit' => $limit,
+            'limitedRemainingText' => $limitedRemainingText,
+            'limitedRemainingTextSize' => $limitedRemainingTextSize,
+            'wrap' => $wrap,
+            'disk' => $disk,
+            'visibility' => $visibility,
+            'defaultImageUrl' => $defaultImageUrl,
+            'checkFileExistence' => $checkFileExistence,
+            'extraImgAttributes' => $extraImgAttributes,
+            // Indicate if closures are used (for per-record evaluation)
+            'hasClosures' => [
+                'imageWidth' => $this->imageWidth instanceof Closure,
+                'imageHeight' => $this->imageHeight instanceof Closure,
+                'defaultImageUrl' => $this->defaultImageUrl instanceof Closure,
+            ],
         ];
     }
 

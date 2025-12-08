@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, SlidersHorizontal, X, Columns3, Eye, EyeOff } from 'lucide-vue-next'
+import { Search, SlidersHorizontal, X, Columns3, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-vue-next'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -48,6 +48,9 @@ interface TableToolbarProps {
   visibleColumns?: string[]
   bulkActionsAvailable?: boolean
   selectedCount?: number
+  showSort?: boolean
+  sortColumn?: string | null
+  sortDirection?: 'asc' | 'desc'
 }
 
 const props = withDefaults(defineProps<TableToolbarProps>(), {
@@ -61,6 +64,9 @@ const props = withDefaults(defineProps<TableToolbarProps>(), {
   visibleColumns: () => [],
   bulkActionsAvailable: false,
   selectedCount: 0,
+  showSort: false,
+  sortColumn: null,
+  sortDirection: 'asc',
 })
 
 const emit = defineEmits<{
@@ -69,6 +75,7 @@ const emit = defineEmits<{
   'update:visibleColumns': [columns: string[]]
   'removeFilter': [filterName: string]
   clearFilters: []
+  'update:sort': [column: string, direction: 'asc' | 'desc']
 }>()
 
 const localSearch = ref(props.search)
@@ -161,6 +168,33 @@ const removeFilter = (filterName: string) => {
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const hasActiveSearch = computed(() => props.search.length > 0)
 const hasComputedFilterIndicators = computed(() => computedFilterIndicators.value.length > 0)
+
+// Sorting functionality for grid view
+const sortableColumns = computed(() => {
+  return props.columns.filter(col => col.sortable)
+})
+
+const currentSortLabel = computed(() => {
+  if (!props.sortColumn) return 'Sort by...'
+  const column = sortableColumns.value.find(col => col.name === props.sortColumn)
+  return column ? column.label : 'Sort by...'
+})
+
+const sortIcon = computed(() => {
+  if (!props.sortColumn) return ArrowUpDown
+  return props.sortDirection === 'asc' ? ArrowUp : ArrowDown
+})
+
+const handleSortChange = (columnName: string) => {
+  let direction: 'asc' | 'desc' = 'asc'
+
+  if (props.sortColumn === columnName) {
+    // Toggle direction if same column
+    direction = props.sortDirection === 'asc' ? 'desc' : 'asc'
+  }
+
+  emit('update:sort', columnName, direction)
+}
 </script>
 
 <template>
@@ -177,31 +211,65 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
     <div class="flex items-center gap-2 flex-nowrap px-4 py-3 border-b border-border">
       <!-- Search -->
       <div v-if="searchable" class="relative w-full max-w-sm shrink-0">
-        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search class="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           v-model="localSearch"
           type="search"
           :placeholder="searchPlaceholder"
-          class="pl-9 pr-9"
+          class="ps-9 pe-9"
           @keyup.enter="handleSearchSubmit"
         />
         <button
           v-if="hasActiveSearch"
           @click="clearSearch"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          class="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           <X class="h-4 w-4" />
         </button>
       </div>
 
-      <div class="flex items-center gap-2 ml-auto shrink-0">
+      <div class="flex items-center gap-2 ms-auto shrink-0">
+        <!-- Sort Button (for grid view) -->
+        <Popover v-if="showSort && sortableColumns.length > 0">
+          <PopoverTrigger as-child>
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
+              <component :is="sortIcon" class="h-4 w-4" />
+              {{ currentSortLabel }}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" class="w-[280px]">
+            <div class="space-y-2">
+              <h4 class="text-sm font-semibold mb-3">Sort by</h4>
+              <div class="space-y-1">
+                <button
+                  v-for="column in sortableColumns"
+                  :key="column.name"
+                  @click="handleSortChange(column.name)"
+                  class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors"
+                  :class="sortColumn === column.name
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'hover:bg-muted'
+                  "
+                >
+                  <span>{{ column.label }}</span>
+                  <component
+                    v-if="sortColumn === column.name"
+                    :is="sortDirection === 'asc' ? ArrowUp : ArrowDown"
+                    class="h-4 w-4"
+                  />
+                </button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <!-- Filters Button -->
         <Popover v-if="filters.length > 0">
           <PopoverTrigger as-child>
             <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
               <SlidersHorizontal class="h-4 w-4" />
               Filters
-              <Badge v-if="activeFilterCount > 0" variant="secondary" class="ml-1 px-1.5">
+              <Badge v-if="activeFilterCount > 0" variant="secondary" class="ms-1 px-1.5">
                 {{ activeFilterCount }}
               </Badge>
             </Button>

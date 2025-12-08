@@ -46,6 +46,8 @@ class Card implements FlutterSerializable, InertiaSerializable
 
     protected ?string $actionsPosition = 'top-right'; // top-right, top-left, bottom, bottom-center, bottom-left, bottom-right
 
+    protected string $style = 'simple'; // simple, media, product
+
     public static function make(): static
     {
         return new static;
@@ -53,6 +55,7 @@ class Card implements FlutterSerializable, InertiaSerializable
 
     /**
      * Quick setup for a product card layout
+     * Perfect for e-commerce: image, title, description, price, and status badge
      */
     public static function product(
         string $imageField = 'image',
@@ -62,6 +65,7 @@ class Card implements FlutterSerializable, InertiaSerializable
         ?string $badgeField = 'status'
     ): static {
         return static::make()
+            ->style('product')
             ->imageField($imageField)
             ->titleField($titleField)
             ->priceField($priceField)
@@ -69,18 +73,21 @@ class Card implements FlutterSerializable, InertiaSerializable
             ->badgeField($badgeField)
             ->showImage()
             ->hoverable()
-            ->padding('lg')
-            ->gap('md');
+            ->aspectRatio('4/3')
+            ->padding('md')
+            ->gap('sm');
     }
 
     /**
      * Quick setup for a simple card layout
+     * Clean minimal design: title, description and optional badge
      */
     public static function simple(
-        string $titleField = 'title',
+        string $titleField = 'name',
         ?string $descriptionField = 'description'
     ): static {
         return static::make()
+            ->style('simple')
             ->titleField($titleField)
             ->descriptionField($descriptionField)
             ->showImage(false)
@@ -91,21 +98,31 @@ class Card implements FlutterSerializable, InertiaSerializable
 
     /**
      * Quick setup for a media card layout
+     * Full-width image with overlay text: great for galleries, articles, portfolios
      */
     public static function media(
         string $imageField = 'image',
-        string $titleField = 'title',
+        string $titleField = 'name',
         ?string $descriptionField = 'description'
     ): static {
         return static::make()
+            ->style('media')
             ->imageField($imageField)
             ->titleField($titleField)
             ->descriptionField($descriptionField)
             ->showImage()
             ->hoverable()
             ->aspectRatio('16/9')
+            ->imagePosition('background')
             ->padding('md')
             ->gap('sm');
+    }
+
+    public function style(string $style): static
+    {
+        $this->style = $style;
+
+        return $this;
     }
 
     /**
@@ -286,6 +303,7 @@ class Card implements FlutterSerializable, InertiaSerializable
             'padding' => $this->padding,
             'gap' => $this->gap,
             'actionsPosition' => $this->actionsPosition,
+            'style' => $this->style,
         ];
     }
 

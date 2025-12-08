@@ -61,6 +61,12 @@ class Table implements InertiaSerializable
 
     protected bool $striped = false;
 
+    protected bool $hoverable = false;
+
+    protected ?string $reorderableColumn = null;
+
+    protected ?string $pollInterval = null;
+
     protected ?Closure $query = null;
 
     protected ?string $defaultSortColumn = 'id';
@@ -85,6 +91,16 @@ class Table implements InertiaSerializable
     protected ?string $resourceSlug = null;
 
     protected ?string $model = null;
+
+    // API-specific properties
+    protected bool $apiEnabled = false;
+
+    protected ?ApiResource $apiResource = null;
+
+    /** @var array<int, ApiColumn>|null */
+    protected ?array $apiColumns = null;
+
+    protected ?string $apiEndpoint = null;
 
     public static function make(): static
     {
@@ -237,6 +253,68 @@ class Table implements InertiaSerializable
         return $this;
     }
 
+    /**
+     * Enable hoverable rows for the table.
+     */
+    public function hoverable(bool $condition = true): static
+    {
+        $this->hoverable = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Enable row reordering with the specified column.
+     */
+    public function reorderable(?string $column = 'sort_order'): static
+    {
+        $this->reorderableColumn = $column;
+
+        return $this;
+    }
+
+    /**
+     * Set the polling interval for auto-refresh.
+     *
+     * @param  string|null  $interval  Interval like '5s', '30s', '1m', etc.
+     */
+    public function poll(?string $interval): static
+    {
+        $this->pollInterval = $interval;
+
+        return $this;
+    }
+
+    /**
+     * Set the empty state heading.
+     */
+    public function emptyStateHeading(?string $heading): static
+    {
+        $this->emptyStateHeading = $heading;
+
+        return $this;
+    }
+
+    /**
+     * Set the empty state description.
+     */
+    public function emptyStateDescription(?string $description): static
+    {
+        $this->emptyStateDescription = $description;
+
+        return $this;
+    }
+
+    /**
+     * Set the empty state icon.
+     */
+    public function emptyStateIcon(?string $icon): static
+    {
+        $this->emptyStateIcon = $icon;
+
+        return $this;
+    }
+
     public function query(?Closure $callback): static
     {
         $this->query = $callback;
@@ -365,6 +443,149 @@ class Table implements InertiaSerializable
         return $this->model;
     }
 
+    // API-specific methods
+
+    /**
+     * Enable API view/tab for this table.
+     *
+     * @param  bool|string  $condition  If string, it's treated as the API endpoint.
+     */
+    public function api(bool|string $condition = true): static
+    {
+        if (is_string($condition)) {
+            $this->apiEnabled = true;
+            $this->apiEndpoint = $condition;
+        } else {
+            $this->apiEnabled = $condition;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the API resource configuration.
+     *
+     * @param  ApiResource|string|array<int, ApiColumn>  $resource
+     */
+    public function apiResource(ApiResource|string|array $resource): static
+    {
+        $this->apiEnabled = true;
+
+        if ($resource instanceof ApiResource) {
+            $this->apiResource = $resource;
+        } elseif (is_string($resource)) {
+            // Assume it's a class name
+            $this->apiResource = new $resource;
+        } else {
+            // It's an array of ApiColumns
+            $this->apiColumns = $resource;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the API endpoint.
+     */
+    public function apiEndpoint(?string $endpoint): static
+    {
+        $this->apiEndpoint = $endpoint;
+
+        return $this;
+    }
+
+    /**
+     * Check if API view is enabled.
+     */
+    public function hasApi(): bool
+    {
+        return $this->apiEnabled;
+    }
+
+    /**
+     * Get the API resource.
+     */
+    public function getApiResource(): ?ApiResource
+    {
+        // If we have a direct ApiResource, return it
+        if ($this->apiResource !== null) {
+            return $this->apiResource;
+        }
+
+        // If we have API columns, create a resource from them
+        if ($this->apiColumns !== null) {
+            return ApiResource::make()
+                ->columns($this->apiColumns)
+                ->endpoint($this->apiEndpoint ?? $this->getDefaultApiEndpoint());
+        }
+
+        // If API is enabled but no columns specified, auto-generate from table columns
+        if ($this->apiEnabled) {
+            return $this->generateApiResourceFromColumns();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the API columns.
+     *
+     * @return array<int, ApiColumn>|null
+     */
+    public function getApiColumns(): ?array
+    {
+        if ($this->apiColumns !== null) {
+            return $this->apiColumns;
+        }
+
+        if ($this->apiResource !== null) {
+            return $this->apiResource->getColumns();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the API endpoint.
+     */
+    public function getApiEndpoint(): ?string
+    {
+        return $this->apiEndpoint ?? $this->getDefaultApiEndpoint();
+    }
+
+    /**
+     * Get the default API endpoint based on resource slug.
+     */
+    protected function getDefaultApiEndpoint(): string
+    {
+        $slug = $this->resourceSlug ?? 'records';
+
+        return "/api/{$slug}";
+    }
+
+    /**
+     * Generate an ApiResource from the table columns.
+     */
+    protected function generateApiResourceFromColumns(): ApiResource
+    {
+        $apiColumns = [];
+
+        foreach ($this->columns as $column) {
+            $apiColumn = ApiColumn::make($column->getName())
+                ->label($column->getLabel())
+                ->sortable($column->isSortable())
+                ->searchable($column->isSearchable());
+
+            $apiColumns[] = $apiColumn;
+        }
+
+        return ApiResource::make()
+            ->columns($apiColumns)
+            ->endpoint($this->apiEndpoint ?? $this->getDefaultApiEndpoint())
+            ->paginated($this->paginated)
+            ->perPage($this->perPage);
+    }
+
     /**
      * @return array<int, Column>
      */
@@ -428,8 +649,14 @@ class Table implements InertiaSerializable
         }
 
         // Apply sorting
-        $sortColumn = request()->get('sort', $this->defaultSortColumn);
-        $sortDirection = request()->get('direction', $this->defaultSortDirection);
+        // Use query() instead of get() to avoid conflict with middleware setting 'direction' attribute
+        $sortColumn = request()->query('sort', $this->defaultSortColumn);
+        $sortDirection = request()->query('direction', $this->defaultSortDirection);
+
+        // Validate sort direction - only accept 'asc' or 'desc'
+        if (!in_array($sortDirection, ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
 
         if ($sortColumn) {
             $query->orderBy($sortColumn, $sortDirection);
@@ -515,6 +742,11 @@ class Table implements InertiaSerializable
                     $actionClone->resolveRecordContext($recordId);
                 }
 
+                // Use toArrayWithRecord to evaluate visibility with record context
+                if (method_exists($actionClone, 'toArrayWithRecord')) {
+                    return $actionClone->toArrayWithRecord($record);
+                }
+
                 return method_exists($actionClone, 'toArray') ? $actionClone->toArray() : (method_exists($actionClone, 'toInertiaProps') ? $actionClone->toInertiaProps() : $actionClone);
             }, $this->recordActions);
 
@@ -575,6 +807,10 @@ class Table implements InertiaSerializable
             'paginationPageOptions' => $this->paginationPageOptions,
             'infiniteScroll' => $this->infiniteScroll,
             'striped' => $this->striped,
+            'hoverable' => $this->hoverable,
+            'reorderable' => $this->reorderableColumn !== null,
+            'reorderableColumn' => $this->reorderableColumn,
+            'pollInterval' => $this->pollInterval,
             'defaultSortColumn' => $this->defaultSortColumn,
             'defaultSortDirection' => $this->defaultSortDirection,
             'fixedActions' => $this->fixedActions,
@@ -590,6 +826,10 @@ class Table implements InertiaSerializable
             ],
             'queryRoute' => $this->queryRoute ?? request()->url(),
             'resourceSlug' => $this->resourceSlug ?? '',
+            'model' => $this->model,
+            // API-specific properties
+            'apiEnabled' => $this->apiEnabled,
+            'apiResource' => $this->getApiResource()?->toInertiaProps(),
         ];
     }
 

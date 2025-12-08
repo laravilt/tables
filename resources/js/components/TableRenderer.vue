@@ -7,6 +7,9 @@ import TableToolbar from './TableToolbar.vue'
 import GridToolbar from './GridToolbar.vue'
 import LaraviltComponentRenderer from '@laravilt/forms/components/LaraviltComponentRenderer.vue'
 import ActionButton from '@laravilt/actions/components/ActionButton.vue'
+import { useLocalization } from '@laravilt/support/composables'
+
+const { trans } = useLocalization()
 
 interface FilterIndicator {
     label: string
@@ -45,29 +48,33 @@ const props = withDefaults(defineProps<TableRendererProps>(), {
 
 // Extract bulk actions from toolbarActions (handles BulkActionGroup)
 const extractedBulkActions = computed(() => {
+    let actions: any[] = []
+
     // First, check if bulk actions are directly provided
     if (props.bulkActions && props.bulkActions.length > 0) {
-        return props.bulkActions
+        actions = props.bulkActions
     }
-
     // Then check table's bulkActions
-    if (props.table.bulkActions && props.table.bulkActions.length > 0) {
-        return props.table.bulkActions
+    else if (props.table.bulkActions && props.table.bulkActions.length > 0) {
+        actions = props.table.bulkActions
     }
-
     // Finally, extract from toolbarActions (look for BulkActionGroup)
-    if (props.table.toolbarActions && props.table.toolbarActions.length > 0) {
-        const allBulkActions: any[] = []
+    else if (props.table.toolbarActions && props.table.toolbarActions.length > 0) {
         for (const action of props.table.toolbarActions) {
             // Check if this is a BulkActionGroup
             if (action.type === 'bulk-action-group' && action.actions) {
-                allBulkActions.push(...action.actions)
+                actions.push(...action.actions)
             }
         }
-        return allBulkActions
     }
 
-    return []
+    // Set preserveState: false for all bulk actions so table refreshes after action
+    return actions.map(action => ({
+        ...action,
+        preserveState: action.preserveState ?? false,
+        isBulkAction: true,
+        deselectRecordsAfterCompletion: action.deselectRecordsAfterCompletion ?? true,
+    }))
 })
 
 // Computed to determine if we should show grid view
@@ -193,7 +200,13 @@ const handleSort = (column: string, direction: 'asc' | 'desc') => {
     sortColumn.value = column
     sortDirection.value = direction
 
-    reloadData()
+    // For infinite scroll, mark as filter reload to replace records instead of appending
+    if (props.table.infiniteScroll) {
+        isFilterReload.value = true
+        currentPage.value = 1
+    }
+
+    reloadData(1, true) // Reset to page 1 when sorting
 }
 
 const handleSearch = (query: string) => {
@@ -240,6 +253,7 @@ const handleUpdateSelectedRecords = (records: (number | string)[]) => {
 
 const bulkActionData = computed(() => ({
     ids: selectedRecords.value,
+    model: props.table.model,
 }))
 
 const reloadData = (page?: number, resetPage = false) => {
@@ -522,7 +536,8 @@ onMounted(() => {
     const directionParam = urlParams.get('direction')
     if (sortParam) {
         sortColumn.value = sortParam
-        sortDirection.value = (directionParam as 'asc' | 'desc') || 'asc'
+        // Validate direction - only accept 'asc' or 'desc', default to 'asc'
+        sortDirection.value = (directionParam === 'asc' || directionParam === 'desc') ? directionParam : 'asc'
     }
 
     // Mark as initialized to enable watchers
@@ -601,11 +616,15 @@ onUnmounted(() => {
                 :columns="table.columns"
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :selected-count="selectedRecords.length"
+                :show-sort="isGridView"
+                :sort-column="sortColumn"
+                :sort-direction="sortDirection"
                 v-model:visible-columns="visibleColumns"
                 @update:search="handleSearch"
                 @update:filters="handleFilterChange"
                 @remove-filter="removeFilter"
                 @clear-filters="clearAllFilters"
+                @update:sort="handleSort"
             >
                 <template #filters>
                     <div
@@ -662,6 +681,7 @@ onUnmounted(() => {
                 :visible-columns="visibleColumns"
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :resource-slug="resourceSlug"
+                :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
                 :fixed-actions="table.fixedActions"
                 :striped="table.striped"
@@ -680,6 +700,7 @@ onUnmounted(() => {
                 :loading-more="isLoadingMore"
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :resource-slug="resourceSlug"
+                :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
                 @update:selected-records="handleUpdateSelectedRecords"
             />
@@ -689,16 +710,16 @@ onUnmounted(() => {
                 <div v-if="isLoadingMore" class="p-8">
                     <div class="flex items-center justify-center gap-2">
                         <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
-                        <span class="text-sm text-muted-foreground">Loading more...</span>
+                        <span class="text-sm text-muted-foreground">{{ trans('table.loading_more') }}</span>
                     </div>
                 </div>
                 <div v-else-if="pagination && pagination.current_page < pagination.last_page" class="p-4">
                     <div ref="tableEndRef" class="h-20 flex items-center justify-center">
-                        <span class="text-xs text-muted-foreground">Scroll for more...</span>
+                        <span class="text-xs text-muted-foreground">{{ trans('table.scroll_for_more') }}</span>
                     </div>
                 </div>
                 <div v-else class="p-4 text-center">
-                    <span class="text-sm text-muted-foreground">No more records</span>
+                    <span class="text-sm text-muted-foreground">{{ trans('table.no_more_records') }}</span>
                 </div>
             </div>
             </div> <!-- End Scrollable Records Area -->
@@ -709,7 +730,7 @@ onUnmounted(() => {
                     <!-- Per Page Selector (centered on mobile, left on desktop) -->
                     <div class="flex items-center gap-2 sm:mr-auto">
                         <label for="per-page" class="text-sm text-muted-foreground whitespace-nowrap">
-                            Per page:
+                            {{ trans('table.per_page') }}
                         </label>
                         <select
                             id="per-page"
@@ -733,7 +754,7 @@ onUnmounted(() => {
                                 'hover:bg-muted': pagination.current_page > 1
                             }"
                         >
-                            Previous
+                            {{ trans('common.previous') }}
                         </button>
 
                         <!-- Page Numbers -->

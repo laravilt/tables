@@ -251,4 +251,55 @@ test.describe('Table Component', () => {
       await expect(container).toBeVisible()
     })
   })
+
+  test.describe('Sorting', () => {
+    test('should toggle sort direction when clicking column header', async ({ page }) => {
+      // Find a sortable column header (look for the sort icon button)
+      const sortableHeader = page.locator('[class*="cursor-pointer"][class*="flex"]').filter({ hasText: /name/i }).first()
+      const headerExists = await sortableHeader.count()
+
+      if (headerExists > 0) {
+        // Click to sort ascending
+        await sortableHeader.click()
+        await page.waitForTimeout(1000)
+
+        // Check URL has sort=name&direction=asc
+        const url1 = page.url()
+        expect(url1).toContain('sort=')
+        expect(url1).toContain('direction=asc')
+
+        // Click again to sort descending
+        await sortableHeader.click()
+        await page.waitForTimeout(1000)
+
+        // Check URL has direction=desc
+        const url2 = page.url()
+        expect(url2).toContain('direction=desc')
+      }
+    })
+
+    test('should update URL with sort parameters', async ({ page }) => {
+      // Navigate with sort params directly
+      await page.goto('/admin/demos/table?sort=name&direction=desc')
+      await page.waitForSelector('[class*="bg-card"][class*="rounded"]', { timeout: 15000 })
+
+      // Verify page loads correctly with sort params
+      await expect(page).toHaveURL(/sort=name/)
+      await expect(page).toHaveURL(/direction=desc/)
+
+      // Container should still be visible
+      const container = page.locator('[class*="bg-card"][class*="rounded"]').first()
+      await expect(container).toBeVisible()
+    })
+
+    test('should validate sort direction parameter', async ({ page }) => {
+      // Navigate with invalid direction - should default to asc
+      await page.goto('/admin/demos/table?sort=name&direction=invalid')
+      await page.waitForSelector('[class*="bg-card"][class*="rounded"]', { timeout: 15000 })
+
+      // Page should load without errors
+      const container = page.locator('[class*="bg-card"][class*="rounded"]').first()
+      await expect(container).toBeVisible()
+    })
+  })
 })

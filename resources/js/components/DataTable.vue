@@ -44,6 +44,7 @@ interface DataTableProps {
   visibleColumns?: string[]
   bulkActionsAvailable?: boolean
   resourceSlug?: string
+  modelClass?: string
   recordActions?: Action[]
   executionRoute?: string
   clearSelections?: number
@@ -62,6 +63,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   visibleColumns: () => [],
   bulkActionsAvailable: false,
   resourceSlug: '',
+  modelClass: undefined,
   recordActions: () => [],
   executionRoute: undefined,
   clearSelections: 0,
@@ -176,6 +178,42 @@ const getColumnComponent = (columnType: string) => {
       return TextColumn
   }
 }
+
+// Get column width class based on column type and name
+const getColumnWidthClass = (column: Column, index: number): string => {
+  // Check for explicit width from column config
+  if (column.width) {
+    return `w-[${column.width}]`
+  }
+
+  // Small width for ID columns
+  if (column.name === 'id' || column.name.endsWith('_id')) {
+    return 'w-[80px] min-w-[80px]'
+  }
+
+  // Small width for boolean/icon/toggle columns
+  if (column.component === 'IconColumn' || column.component === 'ToggleColumn') {
+    return 'w-[100px] min-w-[100px]'
+  }
+
+  // Small width for color columns
+  if (column.component === 'ColorColumn') {
+    return 'w-[100px] min-w-[100px]'
+  }
+
+  // Medium width for image columns
+  if (column.component === 'ImageColumn') {
+    return 'w-[120px] min-w-[120px]'
+  }
+
+  // Flexible width for name/title as first meaningful column (usually index 0 or 1)
+  if (index === 0 || column.name === 'name' || column.name === 'title') {
+    return 'min-w-[180px] flex-1'
+  }
+
+  // Default medium width for other text columns
+  return 'min-w-[140px] w-[180px]'
+}
 </script>
 
 <template>
@@ -198,8 +236,8 @@ const getColumnComponent = (columnType: string) => {
     </div>
 
     <!-- Table Content (only show when there are records or loading) -->
-    <div v-else>
-      <div>
+    <div v-else :class="[fixedActions && hasRecordActions ? 'overflow-x-auto custom-scrollbar' : '']">
+      <div :class="[fixedActions && hasRecordActions ? 'min-w-max' : '']">
         <!-- Table Header (Sticky at top when scrolling) -->
         <div class="border-b border-border bg-muted/50 sticky top-0 z-10">
           <div class="flex items-center">
@@ -237,9 +275,10 @@ const getColumnComponent = (columnType: string) => {
                 v-for="(column, index) in visibleColumnsFiltered"
                 :key="`header-${column.name}`"
                 :class="[
-                  'px-4 py-3.5 text-left text-xs font-medium uppercase tracking-wider',
+                  'px-4 py-3.5 text-start text-xs font-medium uppercase tracking-wider',
                   column.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : 'text-muted-foreground',
-                  index === 0 ? 'min-w-[250px] w-[250px]' : 'min-w-[200px] w-[200px]'
+                  getColumnWidthClass(column, index),
+                  'shrink-0'
                 ]"
                 @click="handleSort(column)"
               >
@@ -256,7 +295,7 @@ const getColumnComponent = (columnType: string) => {
             </div>
 
             <!-- Fixed Actions Header -->
-            <div v-if="fixedActions && hasRecordActions" class="sticky right-0 z-10 border-l border-border bg-muted flex items-center justify-end px-4 py-3.5 shrink-0 min-w-[180px]">
+            <div v-if="fixedActions && hasRecordActions" class="sticky end-0 z-20 border-s border-border bg-muted flex items-center justify-end px-4 py-3.5 shrink-0 min-w-[180px]">
               <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</span>
             </div>
           </div>
@@ -289,8 +328,8 @@ const getColumnComponent = (columnType: string) => {
                     v-for="(column, index) in visibleColumnsFiltered"
                     :key="`skeleton-col-${column.name}`"
                     :class="[
-                      'px-4 py-4',
-                      index === 0 ? 'min-w-[250px] w-[250px]' : 'min-w-[200px] w-[200px]'
+                      'px-4 py-4 shrink-0',
+                      getColumnWidthClass(column, index)
                     ]"
                   >
                     <Skeleton class="h-5 w-full max-w-[200px]" />
@@ -300,7 +339,7 @@ const getColumnComponent = (columnType: string) => {
                 <!-- Fixed Actions Skeleton -->
                 <div
                   v-if="fixedActions && hasRecordActions"
-                  class="sticky right-0 z-10 border-l border-border flex items-center justify-end gap-1.5 px-4 py-4 self-stretch shrink-0 min-w-[180px]"
+                  class="sticky end-0 z-20 border-s border-border flex items-center justify-end gap-1.5 px-4 py-4 self-stretch shrink-0 min-w-[180px]"
                   :class="[
                     i % 2 === 0 ? 'bg-muted/20' : 'bg-card'
                   ]"
@@ -366,8 +405,9 @@ const getColumnComponent = (columnType: string) => {
                     v-for="(column, columnIndex) in visibleColumnsFiltered"
                     :key="`cell-${column.name}`"
                     :class="[
-                      'px-4 py-4 text-sm',
-                      columnIndex === 0 ? 'min-w-[250px] w-[250px] font-medium text-foreground' : 'min-w-[200px] w-[200px] text-muted-foreground',
+                      'px-4 py-4 text-sm shrink-0',
+                      getColumnWidthClass(column, columnIndex),
+                      columnIndex === 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
                     ]"
                   >
                     <component
@@ -390,6 +430,7 @@ const getColumnComponent = (columnType: string) => {
                         :actions="record._actions"
                         :record="record"
                         :resource-name="resourceSlug"
+                        :model-class="modelClass"
                         :execution-route="executionRoute"
                         variant="inline"
                       />
@@ -400,7 +441,7 @@ const getColumnComponent = (columnType: string) => {
                 <!-- Fixed Actions Cell -->
                 <div
                   v-if="fixedActions && record._actions && record._actions.length > 0"
-                  class="sticky right-0 z-10 border-l border-border transition-colors flex items-center justify-end gap-1.5 px-4 self-stretch shrink-0 min-w-[180px]"
+                  class="sticky end-0 z-20 border-s border-border transition-colors flex items-center justify-end gap-1.5 px-4 self-stretch shrink-0 min-w-[180px]"
                   :class="[
                     index % 2 === 0 ? 'bg-card group-hover:bg-muted' : 'bg-muted group-hover:bg-muted',
                     selectedRecords.has(record.id) && 'bg-primary/10 group-hover:bg-primary/20',
@@ -411,6 +452,7 @@ const getColumnComponent = (columnType: string) => {
                       :actions="record._actions"
                       :record="record"
                       :resource-name="resourceSlug"
+                      :model-class="modelClass"
                       :execution-route="executionRoute"
                       variant="inline"
                     />
@@ -426,48 +468,59 @@ const getColumnComponent = (columnType: string) => {
 </template>
 
 <style scoped>
-/* Custom scrollbar styling */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
-  scroll-behavior: smooth;
-}
-
-/* Webkit scrollbar styling */
-.custom-scrollbar::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.5);
-}
-
-/* Dark mode adjustments */
-:global(.dark) .custom-scrollbar {
-  scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
-}
-
-:global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted-foreground) / 0.4);
-}
-
-:global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--muted-foreground) / 0.6);
-}
-
 /* Smooth transitions for row hover states */
 .group {
   transition: background-color 0.15s ease-in-out;
+}
+</style>
+
+<!-- Global scrollbar styles (not scoped for proper pseudo-element support) -->
+<style>
+/* Custom scrollbar for DataTable */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #e5e5e5;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #a3a3a3;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #737373;
+}
+
+/* Dark mode scrollbar */
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #262626;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #525252;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #737373;
+}
+
+/* Firefox scrollbar */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #a3a3a3 #e5e5e5;
+}
+
+.dark .custom-scrollbar {
+    scrollbar-color: #525252 #262626;
+}
+
+/* Scrollbar corner */
+.custom-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
 }
 </style>
