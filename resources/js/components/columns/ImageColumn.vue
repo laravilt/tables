@@ -45,9 +45,17 @@ const props = withDefaults(defineProps<ImageColumnProps>(), {
 })
 
 const images = computed(() => {
-  if (!props.value) return []
+  if (!props.value) {
+    // Show default image if no value but defaultImageUrl is set
+    return props.defaultImageUrl ? [props.defaultImageUrl] : []
+  }
   return Array.isArray(props.value) ? props.value : [props.value]
 })
+
+// Track if we're showing the default image (to prevent error handler loop)
+const isDefaultImage = (image: string) => {
+  return image === props.defaultImageUrl
+}
 
 const displayImages = computed(() => {
   if (!props.limit) return images.value
@@ -62,12 +70,19 @@ const remainingCount = computed(() => {
 const sizeStyle = computed(() => {
   const style: Record<string, string> = {}
 
+  // Default size for table images (36x36 - compact but visible)
+  const defaultSize = '36px'
+
   if (props.imageWidth) {
     style.width = typeof props.imageWidth === 'number' ? `${props.imageWidth}px` : props.imageWidth
+  } else {
+    style.width = defaultSize
   }
 
   if (props.imageHeight) {
     style.height = typeof props.imageHeight === 'number' ? `${props.imageHeight}px` : props.imageHeight
+  } else {
+    style.height = defaultSize
   }
 
   return style
@@ -143,17 +158,19 @@ const getImageUrl = (image: string): string => {
   return image
 }
 
-const handleImageError = (event: Event) => {
-  if (props.defaultImageUrl) {
-    (event.target as HTMLImageElement).src = props.defaultImageUrl
+const handleImageError = (event: Event, image: string) => {
+  const imgElement = event.target as HTMLImageElement
+  // Only set default image if this isn't already the default
+  if (props.defaultImageUrl && !isDefaultImage(image)) {
+    imgElement.src = props.defaultImageUrl
   }
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
+  <div class="flex flex-col gap-0.5">
     <!-- Description above -->
-    <div v-if="description && descriptionPosition === 'above'" class="text-[11px] text-muted-foreground/70">
+    <div v-if="description && descriptionPosition === 'above'" class="text-[10px] text-muted-foreground/60 leading-tight">
       {{ description }}
     </div>
 
@@ -176,10 +193,10 @@ const handleImageError = (event: Event) => {
             :class="[
               shapeClass,
               ringClass,
-              'ring-background object-cover',
+              'ring-background object-cover shadow-sm',
             ]"
             v-bind="extraImgAttributes"
-            @error="handleImageError"
+            @error="(e) => handleImageError(e, image)"
           />
         </div>
 
@@ -204,10 +221,10 @@ const handleImageError = (event: Event) => {
           :style="sizeStyle"
           :class="[
             shapeClass,
-            'object-cover',
+            'object-cover shadow-sm border border-border/50',
           ]"
           v-bind="extraImgAttributes"
-          @error="handleImageError"
+          @error="(e) => handleImageError(e, image)"
         />
 
         <span
@@ -223,7 +240,7 @@ const handleImageError = (event: Event) => {
     </div>
 
     <!-- Description below -->
-    <div v-if="description && descriptionPosition === 'below'" class="text-[11px] text-muted-foreground/70">
+    <div v-if="description && descriptionPosition === 'below'" class="text-[10px] text-muted-foreground/60 leading-tight">
       {{ description }}
     </div>
   </div>

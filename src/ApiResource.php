@@ -21,7 +21,7 @@ class ApiResource implements InertiaSerializable
 
     protected bool $paginated = true;
 
-    protected int $perPage = 15;
+    protected int $perPage = 12;
 
     protected ?array $allowedFilters = null;
 
@@ -42,6 +42,11 @@ class ApiResource implements InertiaSerializable
     protected ?array $sampleResponse = null;
 
     protected ?array $fillableFields = null;
+
+    /**
+     * Whether to show the API tester interface in the panel.
+     */
+    protected bool $showApiTester = false;
 
     protected array $validationRules = [];
 
@@ -240,6 +245,25 @@ class ApiResource implements InertiaSerializable
         $this->sampleResponse = $response;
 
         return $this;
+    }
+
+    /**
+     * Enable or disable the API tester interface in the panel.
+     * When enabled, shows an interactive API testing UI for this resource.
+     */
+    public function useAPITester(bool $condition = true): static
+    {
+        $this->showApiTester = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Check if the API tester interface is enabled.
+     */
+    public function hasAPITester(): bool
+    {
+        return $this->showApiTester;
     }
 
     /**
@@ -1581,6 +1605,7 @@ class ApiResource implements InertiaSerializable
             ),
             'operations' => $this->getOperationsConfig(),
             'openApiSpec' => $this->toOpenApi(),
+            'showApiTester' => $this->showApiTester,
         ];
     }
 

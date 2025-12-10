@@ -72,13 +72,16 @@ const badgeVariant = computed(() => {
   if (!props.color) return 'secondary'
 
   const colorMap: Record<string, string> = {
-    'primary': 'default',
+    'primary': 'primary',
     'success': 'success',
-    'danger': 'destructive',
+    'danger': 'danger',
     'warning': 'warning',
-    'info': 'secondary',
-    'gray': 'secondary',
+    'info': 'info',
+    'gray': 'gray',
     'secondary': 'secondary',
+    // Legacy mappings
+    'destructive': 'danger',
+    'default': 'primary',
   }
 
   return colorMap[props.color] || 'secondary'
@@ -245,7 +248,7 @@ const sizeClass = computed(() => {
 
 const containerClass = computed(() => {
   return [
-    'flex flex-col gap-1',
+    'flex flex-col gap-1 max-w-full overflow-hidden',
     props.grow ? 'flex-1' : '',
     alignmentClass.value,
   ].filter(Boolean).join(' ')
@@ -318,7 +321,7 @@ const displayValue = computed(() => {
 
             <div
               v-else-if="html"
-              :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']"
+              :class="[weightClass, sizeClass, wrap ? 'whitespace-normal break-words' : (limit ? 'truncate' : 'break-words')]"
               v-html="displayValue"
             />
 
@@ -327,7 +330,7 @@ const displayValue = computed(() => {
               :class="['text-xs bg-muted/50 rounded px-2 py-1 overflow-x-auto', weightClass]"
             ><code>{{ displayValue }}</code></pre>
 
-            <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']">
+            <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal break-words' : (limit ? 'truncate' : 'break-words')]">
               {{ displayValue }}
             </span>
 
@@ -397,7 +400,7 @@ const displayValue = computed(() => {
       <!-- HTML content -->
       <div
         v-else-if="html"
-        :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']"
+        :class="[weightClass, sizeClass, wrap ? 'whitespace-normal break-words' : (limit ? 'truncate' : 'break-words')]"
         v-html="displayValue"
       />
 
@@ -408,7 +411,7 @@ const displayValue = computed(() => {
       ><code>{{ displayValue }}</code></pre>
 
       <!-- Regular text -->
-      <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal' : 'truncate']">
+      <span v-else :class="[weightClass, sizeClass, wrap ? 'whitespace-normal break-words' : (limit ? 'truncate' : 'break-words')]">
         {{ displayValue }}
       </span>
 

@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { Switch } from '@/components/ui/switch'
 import { useNotification } from '@laravilt/notifications/composables/useNotification'
+import { useLocalization } from '@/composables/useLocalization'
+
+// Initialize localization
+const { trans } = useLocalization()
 
 interface ToggleGridColumnProps {
   value: any
@@ -24,6 +28,10 @@ const props = withDefaults(defineProps<ToggleGridColumnProps>(), {
 
 const { notify } = useNotification()
 
+// Get the panel path from Inertia shared data
+const page = usePage()
+const panelPath = computed(() => (page.props as any).panel?.path || 'dashboard')
+
 // Use the same boolean conversion as the Edit page - simple Boolean() cast
 const localValue = ref<boolean>(Boolean(props.value))
 const isUpdating = ref(false)
@@ -44,7 +52,7 @@ const isChecked = computed({
 
     // Send update to backend (convert to 1/0 for database)
     router.patch(
-      `/dashboard/${props.resourceSlug}/${props.recordId}/column`,
+      `/${panelPath.value}/${props.resourceSlug}/${props.recordId}/column`,
       {
         column: props.name,
         value: newValue ? 1 : 0,
@@ -56,15 +64,18 @@ const isChecked = computed({
         onSuccess: () => {
           localValue.value = newValue
           isUpdating.value = false
-          notify('Updated', 'Value updated successfully', 'success', {
-            duration: 2000,
-          })
+          notify(
+            trans('tables::tables.toggle_column.success_notification_title'),
+            trans('tables::tables.toggle_column.success_notification_message'),
+            'success',
+            { duration: 2000 }
+          )
         },
         onError: (errors) => {
           isUpdating.value = false
 
-          const errorMessage = errors[props.name] || 'Failed to update value'
-          notify('Error', errorMessage, 'error', {
+          const errorMessage = errors[props.name] || trans('tables::tables.toggle_column.error_notification_message')
+          notify(trans('tables::tables.toggle_column.error_notification_title'), errorMessage, 'error', {
             duration: 3000,
           })
         },

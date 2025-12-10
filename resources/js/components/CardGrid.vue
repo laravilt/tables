@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Inbox, Clock, User, FileText, Calendar } from 'lucide-vue-next'
+import { Inbox, Clock, User, FileText, Calendar, Eye, Pencil, Package, Star } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import TextGridColumn from './grid-columns/TextGridColumn.vue'
@@ -157,6 +157,12 @@ const getTitle = (record: any) => {
     const titleField = props.grid.card?.titleField
     if (!titleField) return null
     return record[titleField]
+}
+
+const getSubtitle = (record: any) => {
+    const subtitleField = props.grid.card?.subtitleField
+    if (!subtitleField) return null
+    return record[subtitleField]
 }
 
 const getDescription = (record: any) => {
@@ -378,54 +384,111 @@ const getStatusIcon = (status: string) => {
 
         <!-- Loading State (show skeleton when loading initial data) -->
         <div v-if="isLoading && !loadingMore" class="grid gap-4" :class="gridColsClass">
-            <!-- Skeleton matching Simple card style -->
-            <div
-                v-for="i in skeletonCount"
-                :key="`skeleton-${i}`"
-                class="overflow-hidden bg-card border rounded-lg flex flex-col"
-            >
-                <!-- Main Card Content Skeleton -->
-                <div class="p-5 flex-1">
-                    <!-- Header: Checkbox + ID -->
-                    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                        <Skeleton class="h-5 w-5 rounded shrink-0" />
-                        <Skeleton class="h-4 w-14 rounded" />
-                    </div>
+            <!-- Product Card Skeleton -->
+            <template v-if="cardStyle === 'product'">
+                <div
+                    v-for="i in skeletonCount"
+                    :key="`skeleton-product-${i}`"
+                    class="overflow-hidden bg-card border rounded-xl shadow-sm flex flex-col"
+                >
+                    <!-- Product Image Skeleton -->
+                    <Skeleton class="aspect-square w-full" />
 
-                    <!-- Body: Avatar + Info (centered) -->
-                    <div class="flex flex-col items-center gap-4">
-                        <!-- Avatar Skeleton -->
-                        <Skeleton class="h-16 w-16 rounded-full shrink-0" />
+                    <!-- Product Info Skeleton -->
+                    <div class="p-4 flex-1 flex flex-col">
+                        <!-- Category / SKU -->
+                        <div class="flex items-center gap-2 mb-2">
+                            <Skeleton class="h-3 w-16" />
+                            <Skeleton class="h-3 w-20" />
+                        </div>
 
-                        <!-- Title and Description Skeleton -->
-                        <div class="w-full space-y-3 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <Skeleton class="h-4 w-4 rounded shrink-0" />
-                                <Skeleton class="h-5 w-3/4 max-w-[200px]" />
+                        <!-- Title -->
+                        <Skeleton class="h-4 w-full mb-1" />
+                        <Skeleton class="h-4 w-3/4 mb-2" />
+
+                        <!-- Description -->
+                        <Skeleton class="h-3 w-full mb-1" />
+                        <Skeleton class="h-3 w-2/3 mb-3" />
+
+                        <!-- Rating -->
+                        <div class="flex items-center gap-1.5 mb-3">
+                            <div class="flex gap-0.5">
+                                <Skeleton v-for="s in 5" :key="s" class="h-3.5 w-3.5 rounded-sm" />
                             </div>
-                            <div class="flex items-center justify-center gap-2">
-                                <Skeleton class="h-4 w-4 rounded shrink-0" />
-                                <Skeleton class="h-4 w-full max-w-[250px]" />
+                            <Skeleton class="h-3 w-8" />
+                        </div>
+
+                        <!-- Price & Stock -->
+                        <div class="mt-auto pt-3 border-t border-border/50">
+                            <div class="flex items-end justify-between">
+                                <Skeleton class="h-6 w-20" />
+                                <div class="flex items-center gap-1.5">
+                                    <Skeleton class="h-2 w-2 rounded-full" />
+                                    <Skeleton class="h-3 w-16" />
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Meta Row Skeleton -->
-                    <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border/50">
-                        <!-- Status Badge Skeleton -->
-                        <Skeleton class="h-7 w-24 rounded-full" />
-                        <!-- Timestamp Skeleton -->
-                        <Skeleton class="h-7 w-20 rounded-full" />
+                    <!-- Actions Footer Skeleton -->
+                    <div class="border-t bg-muted/30 px-4 py-3 flex items-center justify-center gap-2">
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
                     </div>
                 </div>
+            </template>
 
-                <!-- Actions Footer Skeleton -->
-                <div class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3">
-                    <Skeleton class="h-9 w-20 rounded-md" />
-                    <Skeleton class="h-9 w-20 rounded-md" />
-                    <Skeleton class="h-9 w-20 rounded-md" />
+            <!-- Simple Card Skeleton (default) -->
+            <template v-else>
+                <div
+                    v-for="i in skeletonCount"
+                    :key="`skeleton-simple-${i}`"
+                    class="overflow-hidden bg-card border rounded-lg flex flex-col"
+                >
+                    <!-- Main Card Content Skeleton -->
+                    <div class="p-5 flex-1">
+                        <!-- Header: Checkbox + ID -->
+                        <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                            <Skeleton class="h-5 w-5 rounded shrink-0" />
+                            <Skeleton class="h-4 w-14 rounded" />
+                        </div>
+
+                        <!-- Body: Avatar + Info (centered) -->
+                        <div class="flex flex-col items-center gap-4">
+                            <!-- Avatar Skeleton -->
+                            <Skeleton class="h-16 w-16 rounded-full shrink-0" />
+
+                            <!-- Title and Description Skeleton -->
+                            <div class="w-full space-y-3 text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <Skeleton class="h-4 w-4 rounded shrink-0" />
+                                    <Skeleton class="h-5 w-3/4 max-w-[200px]" />
+                                </div>
+                                <div class="flex items-center justify-center gap-2">
+                                    <Skeleton class="h-4 w-4 rounded shrink-0" />
+                                    <Skeleton class="h-4 w-full max-w-[250px]" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Meta Row Skeleton -->
+                        <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border/50">
+                            <!-- Status Badge Skeleton -->
+                            <Skeleton class="h-7 w-24 rounded-full" />
+                            <!-- Timestamp Skeleton -->
+                            <Skeleton class="h-7 w-20 rounded-full" />
+                        </div>
+                    </div>
+
+                    <!-- Actions Footer Skeleton -->
+                    <div class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3">
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                    </div>
                 </div>
-            </div>
+            </template>
         </div>
 
         <!-- Grid Content with records (+ loading more skeletons at bottom) -->
@@ -643,76 +706,148 @@ const getStatusIcon = (status: string) => {
             <!-- PRODUCT CARD STYLE -->
             <!-- E-commerce style with image, structured info, and price -->
             <!-- ================================ -->
-            <Card
+            <div
                 v-for="record in records"
                 v-else-if="cardStyle === 'product'"
                 :key="record.id"
-                class="group relative overflow-hidden transition-all duration-200 flex flex-col"
+                class="group relative overflow-hidden transition-all duration-300 flex flex-col bg-card border rounded-xl shadow-sm"
                 :class="{
-                    'hover:border-primary/30': grid.card?.hoverable !== false,
-                    'ring-2 ring-primary ring-offset-2 ring-offset-background': isSelected(record.id)
+                    'hover:shadow-lg hover:border-primary/30 hover:-translate-y-1': grid.card?.hoverable !== false,
+                    'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50': isSelected(record.id)
                 }"
             >
                 <!-- Selection Checkbox (floating) -->
-                <div v-if="bulkActionsAvailable" class="absolute top-3 left-3 z-10">
-                    <Checkbox
-                        :checked="isSelected(record.id)"
-                        @update:checked="() => handleSelectRecord(record.id)"
-                        class="bg-background/80 backdrop-blur-sm shadow-sm"
-                    />
+                <div v-if="bulkActionsAvailable" class="absolute top-3 left-3 z-20">
+                    <div
+                        @click.stop="handleSelectRecord(record.id)"
+                        :class="[
+                            'h-5 w-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm',
+                            isSelected(record.id)
+                                ? 'bg-primary border-primary'
+                                : 'border-white/80 hover:border-primary/60 bg-white/90 backdrop-blur-sm'
+                        ]"
+                    >
+                        <svg
+                            v-if="isSelected(record.id)"
+                            class="h-3.5 w-3.5 text-primary-foreground"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="3"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
                 </div>
 
                 <!-- Badge (floating top-right) -->
-                <div v-if="getBadge(record)" class="absolute top-3 right-3 z-10">
-                    <Badge :variant="getBadgeVariant(getBadge(record))" class="gap-1 text-xs shadow-sm">
+                <div v-if="getBadge(record)" class="absolute top-3 right-3 z-20">
+                    <div
+                        :class="[
+                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide shadow-md',
+                            getBadgeColorClass(getBadge(record))
+                        ]"
+                    >
                         <component
-                            v-if="getBadgeIconComponent(record)"
-                            :is="getBadgeIconComponent(record)"
+                            :is="getStatusIcon(getBadge(record))"
                             class="h-3 w-3"
                         />
-                        {{ formatBadgeText(getBadge(record)) }}
-                    </Badge>
+                        <span>{{ formatBadgeText(getBadge(record)) }}</span>
+                    </div>
                 </div>
 
-                <!-- Product Image -->
-                <div v-if="grid.card?.showImage !== false" class="relative overflow-hidden bg-muted aspect-[4/3]">
+                <!-- Product Image Container -->
+                <div v-if="grid.card?.showImage !== false" class="relative overflow-hidden bg-gradient-to-br from-muted/50 to-muted aspect-square">
                     <img
                         v-if="getImageUrl(record)"
                         :src="getImageUrl(record)"
                         :alt="getTitle(record) || 'Product image'"
-                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        class="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
                     />
-                    <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                        <span class="text-5xl font-bold text-muted-foreground/20">{{ getTitle(record)?.charAt(0) || '?' }}</span>
+                    <div v-else class="w-full h-full flex items-center justify-center">
+                        <div class="text-center">
+                            <Package class="h-16 w-16 text-muted-foreground/30 mx-auto mb-2" />
+                            <span class="text-sm text-muted-foreground/50">No Image</span>
+                        </div>
                     </div>
+
                 </div>
 
                 <!-- Product Info -->
-                <CardContent class="flex-1 p-4 space-y-3">
+                <div class="flex-1 p-4 flex flex-col">
+                    <!-- Category / SKU -->
+                    <div v-if="getSubtitle(record) || record.category" class="flex items-center gap-2 mb-2">
+                        <span v-if="record.category" class="text-[11px] font-medium text-primary uppercase tracking-wide">
+                            {{ record.category }}
+                        </span>
+                        <span v-if="record.category && getSubtitle(record)" class="text-muted-foreground/30">•</span>
+                        <span v-if="getSubtitle(record)" class="text-[11px] font-mono text-muted-foreground">
+                            {{ getSubtitle(record) }}
+                        </span>
+                    </div>
+
                     <!-- Title -->
-                    <h3 v-if="getTitle(record)" class="text-sm font-semibold leading-tight text-foreground line-clamp-2 min-h-[2.5rem]">
+                    <h3 v-if="getTitle(record)" class="text-sm font-semibold leading-snug text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
                         {{ getTitle(record) }}
                     </h3>
 
                     <!-- Description -->
-                    <p v-if="getDescription(record)" class="text-xs text-muted-foreground line-clamp-2">
+                    <p v-if="getDescription(record)" class="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
                         {{ getDescription(record) }}
                     </p>
 
-                    <!-- Price Section -->
-                    <div v-if="getPrice(record)" class="pt-2 mt-auto border-t">
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-xl font-bold text-foreground">
-                                {{ typeof getPrice(record) === 'number' ? `$${(getPrice(record) / 100).toFixed(2)}` : getPrice(record) }}
-                            </span>
+                    <!-- Rating -->
+                    <div v-if="record.rating" class="flex items-center gap-1.5 mb-3">
+                        <div class="flex items-center">
+                            <Star
+                                v-for="i in 5"
+                                :key="i"
+                                :class="[
+                                    'h-3.5 w-3.5',
+                                    i <= Math.round(record.rating) ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground/30'
+                                ]"
+                            />
+                        </div>
+                        <span class="text-xs text-muted-foreground">({{ record.review_count || 0 }})</span>
+                    </div>
+
+                    <!-- Price & Stock Section -->
+                    <div class="mt-auto pt-3 border-t border-border/50">
+                        <div class="flex items-end justify-between gap-2">
+                            <!-- Price -->
+                            <div v-if="getPrice(record)" class="flex flex-col">
+                                <span class="text-lg font-bold text-foreground">
+                                    {{ typeof getPrice(record) === 'number' ? `$${getPrice(record).toFixed(2)}` : getPrice(record) }}
+                                </span>
+                            </div>
+
+                            <!-- Stock Status -->
+                            <div v-if="record.stock_quantity !== undefined" class="flex items-center gap-1.5">
+                                <div
+                                    :class="[
+                                        'h-2 w-2 rounded-full',
+                                        record.stock_quantity > 10 ? 'bg-emerald-500' :
+                                        record.stock_quantity > 0 ? 'bg-amber-500' : 'bg-red-500'
+                                    ]"
+                                ></div>
+                                <span
+                                    :class="[
+                                        'text-xs font-medium',
+                                        record.stock_quantity > 10 ? 'text-emerald-600' :
+                                        record.stock_quantity > 0 ? 'text-amber-600' : 'text-red-600'
+                                    ]"
+                                >
+                                    {{ record.stock_quantity > 0 ? `${record.stock_quantity} in stock` : 'Out of stock' }}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </CardContent>
+                </div>
 
                 <!-- Actions Footer -->
-                <CardFooter
-                    v-if="record._actions && record._actions.length > 0"
-                    class="flex items-center justify-center gap-2 border-t p-3 bg-muted/20"
+                <div
+                    v-if="record._actions && record._actions.length > 0 && grid.card?.actionsPosition === 'bottom'"
+                    class="border-t bg-muted/30 px-4 py-3 flex items-center justify-center gap-2"
                 >
                     <RecordActions
                         :actions="record._actions"
@@ -722,8 +857,8 @@ const getStatusIcon = (status: string) => {
                         variant="inline"
                         gap="default"
                     />
-                </CardFooter>
-            </Card>
+                </div>
+            </div>
 
             <!-- ================================ -->
             <!-- DEFAULT CARD STYLE (Fallback) -->
@@ -791,55 +926,84 @@ const getStatusIcon = (status: string) => {
             </Card>
 
             <!-- Loading more skeleton cards (shown at bottom while infinite scrolling) -->
-            <!-- Matches Simple card style -->
-            <div
-                v-if="loadingMore"
-                v-for="i in 12"
-                :key="`loading-more-${i}`"
-                class="overflow-hidden bg-card border rounded-lg flex flex-col"
-            >
-                <!-- Main Card Content Skeleton -->
-                <div class="p-5 flex-1">
-                    <!-- Header: Checkbox + ID -->
-                    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
-                        <Skeleton class="h-5 w-5 rounded shrink-0" />
-                        <Skeleton class="h-4 w-14 rounded" />
-                    </div>
-
-                    <!-- Body: Avatar + Info (centered) -->
-                    <div class="flex flex-col items-center gap-4">
-                        <!-- Avatar Skeleton -->
-                        <Skeleton class="h-16 w-16 rounded-full shrink-0" />
-
-                        <!-- Title and Description Skeleton -->
-                        <div class="w-full space-y-3 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <Skeleton class="h-4 w-4 rounded shrink-0" />
-                                <Skeleton class="h-5 w-3/4 max-w-[200px]" />
+            <!-- Product Card Skeleton for loadingMore -->
+            <template v-if="loadingMore && cardStyle === 'product'">
+                <div
+                    v-for="i in 12"
+                    :key="`loading-more-product-${i}`"
+                    class="overflow-hidden bg-card border rounded-xl shadow-sm flex flex-col"
+                >
+                    <Skeleton class="aspect-square w-full" />
+                    <div class="p-4 flex-1 flex flex-col">
+                        <div class="flex items-center gap-2 mb-2">
+                            <Skeleton class="h-3 w-16" />
+                            <Skeleton class="h-3 w-20" />
+                        </div>
+                        <Skeleton class="h-4 w-full mb-1" />
+                        <Skeleton class="h-4 w-3/4 mb-2" />
+                        <Skeleton class="h-3 w-full mb-1" />
+                        <Skeleton class="h-3 w-2/3 mb-3" />
+                        <div class="flex items-center gap-1.5 mb-3">
+                            <div class="flex gap-0.5">
+                                <Skeleton v-for="s in 5" :key="s" class="h-3.5 w-3.5 rounded-sm" />
                             </div>
-                            <div class="flex items-center justify-center gap-2">
-                                <Skeleton class="h-4 w-4 rounded shrink-0" />
-                                <Skeleton class="h-4 w-full max-w-[250px]" />
+                            <Skeleton class="h-3 w-8" />
+                        </div>
+                        <div class="mt-auto pt-3 border-t border-border/50">
+                            <div class="flex items-end justify-between">
+                                <Skeleton class="h-6 w-20" />
+                                <div class="flex items-center gap-1.5">
+                                    <Skeleton class="h-2 w-2 rounded-full" />
+                                    <Skeleton class="h-3 w-16" />
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Meta Row Skeleton -->
-                    <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border/50">
-                        <!-- Status Badge Skeleton -->
-                        <Skeleton class="h-7 w-24 rounded-full" />
-                        <!-- Timestamp Skeleton -->
-                        <Skeleton class="h-7 w-20 rounded-full" />
+                    <div class="border-t bg-muted/30 px-4 py-3 flex items-center justify-center gap-2">
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
                     </div>
                 </div>
+            </template>
 
-                <!-- Actions Footer Skeleton -->
-                <div class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3">
-                    <Skeleton class="h-9 w-20 rounded-md" />
-                    <Skeleton class="h-9 w-20 rounded-md" />
-                    <Skeleton class="h-9 w-20 rounded-md" />
+            <!-- Simple Card Skeleton for loadingMore -->
+            <template v-else-if="loadingMore">
+                <div
+                    v-for="i in 12"
+                    :key="`loading-more-simple-${i}`"
+                    class="overflow-hidden bg-card border rounded-lg flex flex-col"
+                >
+                    <div class="p-5 flex-1">
+                        <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
+                            <Skeleton class="h-5 w-5 rounded shrink-0" />
+                            <Skeleton class="h-4 w-14 rounded" />
+                        </div>
+                        <div class="flex flex-col items-center gap-4">
+                            <Skeleton class="h-16 w-16 rounded-full shrink-0" />
+                            <div class="w-full space-y-3 text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <Skeleton class="h-4 w-4 rounded shrink-0" />
+                                    <Skeleton class="h-5 w-3/4 max-w-[200px]" />
+                                </div>
+                                <div class="flex items-center justify-center gap-2">
+                                    <Skeleton class="h-4 w-4 rounded shrink-0" />
+                                    <Skeleton class="h-4 w-full max-w-[250px]" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border/50">
+                            <Skeleton class="h-7 w-24 rounded-full" />
+                            <Skeleton class="h-7 w-20 rounded-full" />
+                        </div>
+                    </div>
+                    <div class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3">
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                        <Skeleton class="h-9 w-20 rounded-md" />
+                    </div>
                 </div>
-            </div>
+            </template>
         </div>
 
         <!-- Empty State (only when not loading and no records) -->

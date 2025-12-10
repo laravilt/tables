@@ -12,6 +12,8 @@ class ColorColumn extends Column
 
     protected bool $wrap = false;
 
+    protected int $maxVisible = 4;
+
     public function copyable(bool $condition = true): static
     {
         $this->copyable = $condition;
@@ -40,6 +42,16 @@ class ColorColumn extends Column
         return $this;
     }
 
+    /**
+     * Set maximum number of visible colors before showing "+X more".
+     */
+    public function maxVisible(int $count): static
+    {
+        $this->maxVisible = $count;
+
+        return $this;
+    }
+
     protected function getVueComponent(): string
     {
         return 'ColorColumn';
@@ -53,6 +65,7 @@ class ColorColumn extends Column
             'copyMessage' => $this->copyMessage,
             'copyMessageDuration' => $this->copyMessageDuration,
             'wrap' => $this->wrap,
+            'maxVisible' => $this->maxVisible,
         ];
     }
 

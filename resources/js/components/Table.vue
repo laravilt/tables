@@ -16,7 +16,14 @@ interface FilterIndicator {
     removeField: string
 }
 
-interface TableRendererProps {
+interface RelationContext {
+    baseUrl: string
+    relationship: string
+    canEdit: boolean
+    canDelete: boolean
+}
+
+interface TableProps {
     table: any
     records: any[]
     pagination?: any
@@ -27,14 +34,17 @@ interface TableRendererProps {
     queryRoute: string
     loading?: boolean
     currentView?: 'table' | 'grid'
+    useAjax?: boolean // Use fetch API instead of Inertia router (for relation managers)
+    onDataLoaded?: (data: { records: any[], pagination: any }) => void // Callback when data is loaded via AJAX
+    relationContext?: RelationContext // Context for relation manager to build record-specific URLs
 }
 
-const props = withDefaults(defineProps<TableRendererProps>(), {
+const props = withDefaults(defineProps<TableProps>(), {
     records: () => [],
     loading: false,
     pagination: () => ({
         total: 0,
-        per_page: 10,
+        per_page: 12,
         current_page: 1,
         last_page: 1,
         from: 0,
@@ -44,7 +54,13 @@ const props = withDefaults(defineProps<TableRendererProps>(), {
     bulkActions: () => [],
     filterIndicators: () => [],
     currentView: 'table',
+    useAjax: false,
 })
+
+const emit = defineEmits<{
+    'data-loaded': [data: { records: any[], pagination: any }]
+    'action-complete': [data?: any]
+}>()
 
 // Extract bulk actions from toolbarActions (handles BulkActionGroup)
 const extractedBulkActions = computed(() => {
@@ -94,11 +110,82 @@ const searchQuery = ref<string>('')
 const activeFilters = ref<Record<string, any>>({})
 const clearSelectionsKey = ref<number>(0)
 const isLoadingData = ref<boolean>(false)
-const perPage = ref<number>(props.pagination.per_page || 10)
+const perPage = ref<number>(props.pagination.per_page || 12)
 const allRecords = ref<any[]>(props.records)
 const currentPage = ref<number>(props.pagination.current_page || 1)
 const isLoadingMore = ref<boolean>(false)
 const isInitialized = ref<boolean>(false)
+
+// Enhance records with actions for relation manager context
+const enhancedRecords = computed(() => {
+    // If we have relation context, add _actions to each record with proper URLs
+    if (props.relationContext) {
+        return props.records.map(record => {
+            const actions: any[] = []
+
+            // Add view action (no URL needed, just displays modal with data)
+            const viewAction = props.recordActions.find((a: any) => a.name === 'view')
+            if (viewAction) {
+                actions.push({
+                    ...viewAction,
+                    externalFormData: record, // Pass record data to populate form
+                    // No URL or method - view is display only
+                })
+            }
+
+            // Add edit action
+            if (props.relationContext!.canEdit) {
+                const editAction = props.recordActions.find((a: any) => a.name === 'edit')
+                if (editAction) {
+                    actions.push({
+                        ...editAction,
+                        url: `${props.relationContext!.baseUrl}/${record.id}`,
+                        externalFormData: record, // Pass record data to populate form
+                    })
+                }
+            }
+
+            // Add delete action
+            if (props.relationContext!.canDelete) {
+                const deleteAction = props.recordActions.find((a: any) => a.name === 'delete')
+                if (deleteAction) {
+                    actions.push({
+                        ...deleteAction,
+                        url: `${props.relationContext!.baseUrl}/${record.id}`,
+                    })
+                }
+            }
+
+            // Add any other actions that aren't view/edit/delete
+            props.recordActions.forEach((action: any) => {
+                if (action.name !== 'view' && action.name !== 'edit' && action.name !== 'delete') {
+                    actions.push({
+                        ...action,
+                        url: action.url || `${props.relationContext!.baseUrl}/${record.id}`,
+                    })
+                }
+            })
+
+            return {
+                ...record,
+                _actions: actions,
+            }
+        })
+    }
+
+    // For non-relation context, just use the records as-is with existing _actions
+    return props.records
+})
+
+// Handle action completion from record actions - reload data and emit to parent
+const handleActionComplete = (data?: any) => {
+    // If using AJAX mode, reload data after action
+    if (props.useAjax) {
+        reloadData()
+    }
+
+    emit('action-complete', data)
+}
 
 // Column visibility persistence
 const getColumnStorageKey = () => {
@@ -151,8 +238,8 @@ const paginationOptions = computed(() => {
     if (props.table.paginationPageOptions && props.table.paginationPageOptions.length > 0) {
         return props.table.paginationPageOptions
     }
-    // Default options
-    return [5, 10, 15, 25, 50, 100]
+    // Default options (12-based for grid layout compatibility)
+    return [12, 24, 48, 96]
 })
 
 // Track if we're doing a filter/search reload (should replace, not append)
@@ -256,7 +343,7 @@ const bulkActionData = computed(() => ({
     model: props.table.model,
 }))
 
-const reloadData = (page?: number, resetPage = false) => {
+const reloadData = async (page?: number, resetPage = false) => {
     // Set loading state immediately and keep it true
     isLoadingData.value = true
 
@@ -294,7 +381,36 @@ const reloadData = (page?: number, resetPage = false) => {
         }
     })
 
-    // Update URL manually
+    // Use AJAX (fetch) if useAjax is true - this avoids Inertia page reload
+    if (props.useAjax) {
+        try {
+            const queryString = new URLSearchParams(params).toString()
+            const fetchUrl = `${props.queryRoute}?${queryString}`
+
+            const response = await fetch(fetchUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                // Emit data-loaded event for parent to update its state
+                emit('data-loaded', {
+                    records: data.data || [],
+                    pagination: data.pagination || props.pagination,
+                })
+            }
+        } catch (error) {
+            console.error('Failed to fetch data:', error)
+        } finally {
+            isLoadingData.value = false
+        }
+        return
+    }
+
+    // Update URL manually (only for Inertia mode)
     const url = new URL(window.location.href)
     url.search = new URLSearchParams(params).toString()
     window.history.replaceState({}, '', url.toString())
@@ -346,7 +462,7 @@ const loadMoreRecords = () => {
     }
 
     loadMorePending = true
-    loadMoreTimeout = setTimeout(() => {
+    loadMoreTimeout = setTimeout(async () => {
         loadMorePending = false
 
         // Re-check conditions after debounce
@@ -390,7 +506,36 @@ const loadMoreRecords = () => {
             }
         })
 
-        // Update URL
+        // Use AJAX (fetch) if useAjax is true - this avoids Inertia page reload
+        if (props.useAjax) {
+            try {
+                const queryString = new URLSearchParams(params).toString()
+                const fetchUrl = `${props.queryRoute}?${queryString}`
+
+                const response = await fetch(fetchUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    // Emit data-loaded event for parent to update its state
+                    emit('data-loaded', {
+                        records: data.data || [],
+                        pagination: data.pagination || props.pagination,
+                    })
+                }
+            } catch (error) {
+                console.error('Failed to fetch data:', error)
+            } finally {
+                isLoadingMore.value = false
+            }
+            return
+        }
+
+        // Update URL (only for Inertia mode)
         const url = new URL(window.location.href)
         url.search = new URLSearchParams(params).toString()
         window.history.replaceState({}, '', url.toString())
@@ -500,10 +645,18 @@ const getPageNumbers = (): (number | string)[] => {
     return pages
 }
 
-// Listen for bulk action completion to clear selected records
+// Listen for bulk action completion to clear selected records and reload table
 const handleBulkActionCompleted = () => {
     selectedRecords.value = []
     clearSelectionsKey.value++
+
+    // If using AJAX mode, reload data
+    if (props.useAjax) {
+        reloadData()
+    }
+
+    // Emit action-complete to notify parent
+    emit('action-complete')
 }
 
 onMounted(() => {
@@ -673,7 +826,7 @@ onUnmounted(() => {
             <DataTable
                 v-if="!isGridView"
                 :columns="table.columns"
-                :records="table.infiniteScroll ? allRecords : records"
+                :records="relationContext ? enhancedRecords : (table.infiniteScroll ? allRecords : records)"
                 :record-actions="recordActions"
                 :loading="loading || isLoadingData"
                 :sort-column="sortColumn"
@@ -681,20 +834,23 @@ onUnmounted(() => {
                 :visible-columns="visibleColumns"
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :resource-slug="resourceSlug"
+                :column-execution-route="relationContext?.columnExecutionRoute || table.columnExecutionRoute"
                 :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
                 :fixed-actions="table.fixedActions"
                 :striped="table.striped"
                 :infinite-scroll="table.infiniteScroll"
+                :use-ajax="useAjax"
                 @sort="handleSort"
                 @update:selected-records="handleUpdateSelectedRecords"
+                @action-complete="handleActionComplete"
             />
 
             <!-- Render CardGrid for grid view -->
             <CardGrid
                 v-else
                 :grid="{ ...table, card: table.card }"
-                :records="table.infiniteScroll ? allRecords : records"
+                :records="relationContext ? enhancedRecords : (table.infiniteScroll ? allRecords : records)"
                 :record-actions="recordActions"
                 :loading="loading || isLoadingData"
                 :loading-more="isLoadingMore"
@@ -702,7 +858,9 @@ onUnmounted(() => {
                 :resource-slug="resourceSlug"
                 :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
+                :use-ajax="useAjax"
                 @update:selected-records="handleUpdateSelectedRecords"
+                @action-complete="handleActionComplete"
             />
 
             <!-- Infinite Scroll Loading Indicator & Observer (inside scrollable area) -->
@@ -710,40 +868,30 @@ onUnmounted(() => {
                 <div v-if="isLoadingMore" class="p-8">
                     <div class="flex items-center justify-center gap-2">
                         <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
-                        <span class="text-sm text-muted-foreground">{{ trans('table.loading_more') }}</span>
+                        <span class="text-sm text-muted-foreground">{{ trans('tables::tables.infinite_scroll.loading_more') }}</span>
                     </div>
                 </div>
                 <div v-else-if="pagination && pagination.current_page < pagination.last_page" class="p-4">
                     <div ref="tableEndRef" class="h-20 flex items-center justify-center">
-                        <span class="text-xs text-muted-foreground">{{ trans('table.scroll_for_more') }}</span>
+                        <span class="text-xs text-muted-foreground">{{ trans('tables::tables.infinite_scroll.scroll_for_more') }}</span>
                     </div>
                 </div>
                 <div v-else class="p-4 text-center">
-                    <span class="text-sm text-muted-foreground">{{ trans('table.no_more_records') }}</span>
+                    <span class="text-sm text-muted-foreground">{{ trans('tables::tables.infinite_scroll.no_more_records') }}</span>
                 </div>
             </div>
             </div> <!-- End Scrollable Records Area -->
 
             <!-- Pagination (Fixed at bottom) -->
             <div v-if="!table.infiniteScroll && pagination && pagination.total > 0" class="flex-shrink-0 p-4 border-t border-border bg-muted/50">
-                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <!-- Per Page Selector (centered on mobile, left on desktop) -->
-                    <div class="flex items-center gap-2 sm:mr-auto">
-                        <label for="per-page" class="text-sm text-muted-foreground whitespace-nowrap">
-                            {{ trans('table.per_page') }}
-                        </label>
-                        <select
-                            id="per-page"
-                            :value="perPage"
-                            @change="handlePerPageChange"
-                            class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                            <option v-for="option in paginationOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <!-- Pagination Info (left side) -->
+                    <div class="hidden sm:block text-sm text-muted-foreground whitespace-nowrap order-1">
+                        {{ trans('tables::tables.pagination.showing') }} {{ pagination.from }} {{ trans('tables::tables.pagination.to') }} {{ pagination.to }} {{ trans('tables::tables.pagination.of') }} {{ pagination.total }}
                     </div>
 
                     <!-- Pagination Controls (centered) -->
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 order-2">
                         <!-- Previous Button -->
                         <button
                             @click="(e) => handlePageChange(pagination.current_page - 1, e)"
@@ -754,7 +902,7 @@ onUnmounted(() => {
                                 'hover:bg-muted': pagination.current_page > 1
                             }"
                         >
-                            {{ trans('common.previous') }}
+                            {{ trans('tables::tables.pagination.previous') }}
                         </button>
 
                         <!-- Page Numbers -->
@@ -787,13 +935,23 @@ onUnmounted(() => {
                                 'hover:bg-muted': pagination.current_page < pagination.last_page
                             }"
                         >
-                            Next
+                            {{ trans('tables::tables.pagination.next') }}
                         </button>
                     </div>
 
-                    <!-- Pagination Info (right side on desktop, centered on mobile) -->
-                    <div class="hidden sm:block text-sm text-muted-foreground whitespace-nowrap sm:ml-auto">
-                        Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }}
+                    <!-- Per Page Selector (right side) -->
+                    <div class="flex items-center gap-2 order-3">
+                        <label for="per-page" class="text-sm text-muted-foreground whitespace-nowrap">
+                            {{ trans('tables::tables.pagination.per_page') }}
+                        </label>
+                        <select
+                            id="per-page"
+                            :value="perPage"
+                            @change="handlePerPageChange"
+                            class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option v-for="option in paginationOptions" :key="option" :value="option">{{ option }}</option>
+                        </select>
                     </div>
                 </div>
             </div>

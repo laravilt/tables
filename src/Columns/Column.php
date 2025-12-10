@@ -153,6 +153,42 @@ abstract class Column extends Component
         return $this;
     }
 
+    /**
+     * Alias for formatUsing to match FilamentPHP API
+     */
+    public function formatStateUsing(?Closure $callback): static
+    {
+        return $this->formatUsing($callback);
+    }
+
+    /**
+     * Get the format callback
+     */
+    public function getFormatUsing(): ?Closure
+    {
+        return $this->formatUsing;
+    }
+
+    /**
+     * Evaluate the format callback on a given state
+     */
+    public function evaluateFormatUsing(mixed $state, mixed $record = null): mixed
+    {
+        if ($this->formatUsing) {
+            return ($this->formatUsing)($state, $record);
+        }
+
+        return $state;
+    }
+
+    /**
+     * Check if the column has a format callback
+     */
+    public function hasFormatUsing(): bool
+    {
+        return $this->formatUsing !== null;
+    }
+
     public function toggleable(bool $condition = true, bool $isToggledHiddenByDefault = false): static
     {
         $this->toggleable = $condition;
@@ -256,6 +292,7 @@ abstract class Column extends Component
             'suffix' => $this->suffix,
             'grow' => $this->grow,
             'size' => $this->size,
+            'hasFormatUsing' => $this->formatUsing !== null,
         ];
     }
 

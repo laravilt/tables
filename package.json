@@ -1,6 +1,6 @@
 {
     "name": "@laravilt/tables",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Complete data table system with columns, filters, sorting, and actions. Build powerful tables with custom columns, bulk actions, search, and pagination for displaying and managing data.",
     "author": "Fady Mondy <info@3x1.io>",
     "license": "MIT",

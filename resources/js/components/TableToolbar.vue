@@ -17,6 +17,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
+import { useLocalization } from '@/composables/useLocalization'
+
+// Initialize localization
+const { trans } = useLocalization()
 
 interface Column {
   name: string
@@ -175,9 +179,9 @@ const sortableColumns = computed(() => {
 })
 
 const currentSortLabel = computed(() => {
-  if (!props.sortColumn) return 'Sort by...'
+  if (!props.sortColumn) return trans('tables::tables.toolbar.sort_by') + '...'
   const column = sortableColumns.value.find(col => col.name === props.sortColumn)
-  return column ? column.label : 'Sort by...'
+  return column ? column.label : trans('tables::tables.toolbar.sort_by') + '...'
 })
 
 const sortIcon = computed(() => {
@@ -201,7 +205,7 @@ const handleSortChange = (columnName: string) => {
   <div class="flex flex-col gap-3 bg-card">
     <!-- Bulk Actions Bar (when items are selected) -->
     <div v-if="bulkActionsAvailable && selectedCount > 0" class="flex items-center gap-3 bg-primary/10 dark:bg-primary/20 px-4 py-3 border-b border-primary/30">
-      <span class="text-sm font-medium text-foreground">{{ selectedCount }} selected</span>
+      <span class="text-sm font-medium text-foreground">{{ selectedCount }} {{ trans('tables::tables.bulk.selected').replace(':count ', '') }}</span>
       <div class="flex items-center gap-2">
         <slot name="bulk-actions" />
       </div>
@@ -215,13 +219,14 @@ const handleSortChange = (columnName: string) => {
         <Input
           v-model="localSearch"
           type="search"
-          :placeholder="searchPlaceholder"
+          :placeholder="searchPlaceholder || trans('tables::tables.search.placeholder')"
           class="ps-9 pe-9"
           @keyup.enter="handleSearchSubmit"
         />
         <button
           v-if="hasActiveSearch"
           @click="clearSearch"
+          :title="trans('tables::tables.search.clear')"
           class="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           <X class="h-4 w-4" />
@@ -232,14 +237,14 @@ const handleSortChange = (columnName: string) => {
         <!-- Sort Button (for grid view) -->
         <Popover v-if="showSort && sortableColumns.length > 0">
           <PopoverTrigger as-child>
-            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap" :title="trans('tables::tables.toolbar.sort_by')">
               <component :is="sortIcon" class="h-4 w-4" />
               {{ currentSortLabel }}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" class="w-[280px]">
             <div class="space-y-2">
-              <h4 class="text-sm font-semibold mb-3">Sort by</h4>
+              <h4 class="text-sm font-semibold mb-3">{{ trans('tables::tables.toolbar.sort_by') }}</h4>
               <div class="space-y-1">
                 <button
                   v-for="column in sortableColumns"
@@ -266,9 +271,9 @@ const handleSortChange = (columnName: string) => {
         <!-- Filters Button -->
         <Popover v-if="filters.length > 0">
           <PopoverTrigger as-child>
-            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap" :title="trans('tables::tables.toolbar.filters')">
               <SlidersHorizontal class="h-4 w-4" />
-              Filters
+              {{ trans('tables::tables.toolbar.filters') }}
               <Badge v-if="activeFilterCount > 0" variant="secondary" class="ms-1 px-1.5">
                 {{ activeFilterCount }}
               </Badge>
@@ -277,7 +282,7 @@ const handleSortChange = (columnName: string) => {
           <PopoverContent align="end" class="w-[420px]">
             <div class="space-y-4">
               <div class="flex items-center justify-between">
-                <h4 class="text-sm font-semibold">Filters</h4>
+                <h4 class="text-sm font-semibold">{{ trans('tables::tables.toolbar.filters') }}</h4>
                 <Button
                   v-if="hasActiveFilters"
                   variant="ghost"
@@ -285,7 +290,7 @@ const handleSortChange = (columnName: string) => {
                   @click="clearFilters"
                   class="h-auto py-1 px-2 text-xs"
                 >
-                  Clear all
+                  {{ trans('tables::tables.toolbar.clear_all') }}
                 </Button>
               </div>
               <div class="space-y-3">
@@ -298,13 +303,13 @@ const handleSortChange = (columnName: string) => {
         <!-- Column Toggle -->
         <DropdownMenu v-if="toggleableColumns.length > 0">
           <DropdownMenuTrigger as-child>
-            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap">
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap" :title="trans('tables::tables.toolbar.toggle_columns')">
               <Columns3 class="h-4 w-4" />
-              Columns
+              {{ trans('tables::tables.toolbar.columns') }}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-64">
-            <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+            <DropdownMenuLabel>{{ trans('tables::tables.toolbar.toggle_columns') }}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuCheckboxItem
               v-for="column in toggleableColumns"
@@ -330,10 +335,10 @@ const handleSortChange = (columnName: string) => {
 
     <!-- Active Filters Display -->
     <div v-if="hasActiveFilters || hasActiveSearch || hasComputedFilterIndicators" class="flex items-center gap-2 flex-wrap px-4 pb-3">
-      <span class="text-sm text-muted-foreground">Active filters:</span>
+      <span class="text-sm text-muted-foreground">{{ trans('tables::tables.toolbar.active_filters') }}:</span>
 
       <Badge v-if="hasActiveSearch" variant="secondary" class="gap-1">
-        Search: "{{ search }}"
+        {{ trans('tables::tables.toolbar.search') }}: "{{ search }}"
         <button @click="clearSearch" class="hover:text-foreground">
           <X class="h-3 w-3" />
         </button>
@@ -361,7 +366,7 @@ const handleSortChange = (columnName: string) => {
         @click="clearFilters(); clearSearch()"
         class="h-auto py-1 px-2 text-xs"
       >
-        Clear all
+        {{ trans('tables::tables.toolbar.clear_all') }}
       </Button>
     </div>
   </div>

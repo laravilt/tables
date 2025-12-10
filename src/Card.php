@@ -36,6 +36,12 @@ class Card implements FlutterSerializable, InertiaSerializable
 
     protected ?string $badgeField = null;
 
+    protected ?Closure $badgeColorCallback = null;
+
+    protected ?string $subtitleField = null;
+
+    protected array $metadata = [];
+
     protected bool $showImage = true;
 
     protected ?string $imagePosition = 'top'; // top, left, right, background
@@ -217,6 +223,45 @@ class Card implements FlutterSerializable, InertiaSerializable
         return $this;
     }
 
+    /**
+     * Alias for titleField to match FilamentPHP-like API
+     */
+    public function title(string $field): static
+    {
+        return $this->titleField($field);
+    }
+
+    /**
+     * Set subtitle field (alias for better API)
+     */
+    public function subtitle(string $field): static
+    {
+        $this->subtitleField = $field;
+
+        return $this;
+    }
+
+    /**
+     * Set the badge field with optional color callback
+     */
+    public function badge(string $field, ?Closure $colorCallback = null): static
+    {
+        $this->badgeField = $field;
+        $this->badgeColorCallback = $colorCallback;
+
+        return $this;
+    }
+
+    /**
+     * Set metadata fields to display in the card
+     */
+    public function metadata(array $metadata): static
+    {
+        $this->metadata = $metadata;
+
+        return $this;
+    }
+
     public function showImage(bool $condition = true): static
     {
         $this->showImage = $condition;
@@ -278,6 +323,23 @@ class Card implements FlutterSerializable, InertiaSerializable
         return null;
     }
 
+    /**
+     * Evaluate badge color for a given state
+     */
+    public function evaluateBadgeColor(mixed $state): ?string
+    {
+        if ($this->badgeColorCallback) {
+            return ($this->badgeColorCallback)($state);
+        }
+
+        return null;
+    }
+
+    public function hasBadgeColorCallback(): bool
+    {
+        return $this->badgeColorCallback !== null;
+    }
+
     public function toInertiaProps(): array
     {
         return [
@@ -295,9 +357,12 @@ class Card implements FlutterSerializable, InertiaSerializable
             'aspectRatio' => $this->aspectRatio,
             'imageField' => $this->imageField,
             'titleField' => $this->titleField,
+            'subtitleField' => $this->subtitleField,
             'descriptionField' => $this->descriptionField,
             'priceField' => $this->priceField,
             'badgeField' => $this->badgeField,
+            'hasBadgeColorCallback' => $this->badgeColorCallback !== null,
+            'metadata' => $this->metadata,
             'showImage' => $this->showImage,
             'imagePosition' => $this->imagePosition,
             'padding' => $this->padding,

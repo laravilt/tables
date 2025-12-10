@@ -50,7 +50,7 @@ class Table implements InertiaSerializable
 
     protected bool $paginated = true;
 
-    protected int $perPage = 5;
+    protected int $perPage = 12;
 
     /**
      * @var array<int>|null
@@ -101,6 +101,12 @@ class Table implements InertiaSerializable
     protected ?array $apiColumns = null;
 
     protected ?string $apiEndpoint = null;
+
+    /**
+     * Generic options for custom configuration.
+     * @var array<string, mixed>
+     */
+    protected array $options = [];
 
     public static function make(): static
     {
@@ -191,6 +197,72 @@ class Table implements InertiaSerializable
         $this->bulkActions = $actions;
 
         return $this;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    public function getBulkActions(): array
+    {
+        return $this->bulkActions;
+    }
+
+    /**
+     * Inject model into bulk actions that need it.
+     * This is called before serialization to ensure DeleteBulkAction has the model.
+     */
+    protected function processBulkActions(): array
+    {
+        if ($this->model === null) {
+            return $this->bulkActions;
+        }
+
+        return array_map(function ($action) {
+            return $this->injectModelIntoBulkAction($action);
+        }, $this->bulkActions);
+    }
+
+    /**
+     * Recursively inject model into bulk actions.
+     * Handles both individual actions and BulkActionGroup.
+     */
+    protected function injectModelIntoBulkAction($action)
+    {
+        // Handle BulkActionGroup
+        if (method_exists($action, 'getActions')) {
+            $groupActions = $action->getActions();
+            $processedActions = array_map(fn ($a) => $this->injectModelIntoBulkAction($a), $groupActions);
+
+            // Update the group's actions
+            if (method_exists($action, 'setActions')) {
+                $action->setActions($processedActions);
+            }
+
+            return $action;
+        }
+
+        // Handle DeleteBulkAction - inject model if not already set
+        if ($action instanceof \Laravilt\Actions\DeleteBulkAction) {
+            if ($action->getModel() === null) {
+                $action->model($this->model);
+            }
+        }
+
+        return $action;
+    }
+
+    /**
+     * Inject model into toolbar actions that contain bulk action groups.
+     */
+    protected function processToolbarActions(): array
+    {
+        if ($this->model === null) {
+            return $this->toolbarActions;
+        }
+
+        return array_map(function ($action) {
+            return $this->injectModelIntoBulkAction($action);
+        }, $this->toolbarActions);
     }
 
     public function searchPlaceholder(string $placeholder): static
@@ -426,6 +498,29 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * Get the column execution route name.
+     */
+    public function getColumnExecutionRouteName(): string
+    {
+        // Get current panel from registry
+        $registry = app(\Laravilt\Panel\PanelRegistry::class);
+        $panel = $registry->getCurrent();
+
+        if (!$panel) {
+            $panel = $registry->getDefault();
+        }
+
+        if (!$panel) {
+            $allPanels = $registry->all();
+            $panel = reset($allPanels) ?: null;
+        }
+
+        $panelId = $panel?->getId() ?? 'admin';
+
+        return $panelId . '.resources.' . $this->resourceSlug . '.column.update';
+    }
+
+    /**
      * Set the model class for bulk actions.
      */
     public function model(string $model): static
@@ -441,6 +536,32 @@ class Table implements InertiaSerializable
     public function getModel(): ?string
     {
         return $this->model;
+    }
+
+    /**
+     * Set a custom option.
+     */
+    public function setOption(string $key, mixed $value): static
+    {
+        $this->options[$key] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get a custom option.
+     */
+    public function getOption(string $key, mixed $default = null): mixed
+    {
+        return $this->options[$key] ?? $default;
+    }
+
+    /**
+     * Get all custom options.
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
     }
 
     // API-specific methods
@@ -729,6 +850,22 @@ class Table implements InertiaSerializable
                 if ($description !== null) {
                     $recordArray['_descriptions'][$columnName] = $description;
                 }
+
+                // Evaluate formatUsing - apply format callback to transform the value
+                if ($column->hasFormatUsing()) {
+                    $formattedValue = $column->evaluateFormatUsing($value, $record);
+                    if ($formattedValue !== $value) {
+                        $recordArray[$columnName] = $formattedValue;
+                    }
+                }
+            }
+
+            // Evaluate card badge color if card has badge color callback
+            if ($this->card !== null && $this->card->hasBadgeColorCallback()) {
+                $badgeField = $this->card->toInertiaProps()['badgeField'] ?? null;
+                if ($badgeField && isset($recordArray[$badgeField])) {
+                    $recordArray['_badgeColor'] = $this->card->evaluateBadgeColor($recordArray[$badgeField]);
+                }
             }
 
             // Add record-specific actions with resolved record context
@@ -794,11 +931,11 @@ class Table implements InertiaSerializable
             ),
             'toolbarActions' => array_map(
                 fn ($action) => method_exists($action, 'toInertiaProps') ? $action->toInertiaProps() : $action,
-                $this->toolbarActions
+                $this->processToolbarActions()
             ),
             'bulkActions' => array_map(
                 fn ($action) => method_exists($action, 'toInertiaProps') ? $action->toInertiaProps() : $action,
-                $this->bulkActions
+                $this->processBulkActions()
             ),
             'searchable' => $this->searchable,
             'searchPlaceholder' => $this->searchPlaceholder ?? 'Search...',
@@ -826,6 +963,7 @@ class Table implements InertiaSerializable
             ],
             'queryRoute' => $this->queryRoute ?? request()->url(),
             'resourceSlug' => $this->resourceSlug ?? '',
+            'columnExecutionRoute' => $this->resourceSlug ? route($this->getColumnExecutionRouteName(), ['id' => '__ID__']) : null,
             'model' => $this->model,
             // API-specific properties
             'apiEnabled' => $this->apiEnabled,

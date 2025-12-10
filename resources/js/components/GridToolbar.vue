@@ -3,6 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, SlidersHorizontal, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-vue-next'
+import { useLocalization } from '@laravilt/support/composables'
+
+const { trans } = useLocalization()
 import {
   Popover,
   PopoverContent,
@@ -166,7 +169,7 @@ const hasComputedFilterIndicators = computed(() => computedFilterIndicators.valu
         <Input
           v-model="localSearch"
           type="search"
-          :placeholder="searchPlaceholder"
+          :placeholder="searchPlaceholder || trans('tables::tables.search.placeholder')"
           class="pl-9 pr-9"
           @keyup.enter="handleSearchSubmit"
         />

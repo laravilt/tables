@@ -27,7 +27,7 @@ class TablesServiceProvider extends ServiceProvider
     {
 
         // Load translations
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'tables');
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'tables');
 
         // Load web routes
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');

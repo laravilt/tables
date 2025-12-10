@@ -9,6 +9,10 @@ import RecordActions from '@laravilt/actions/components/RecordActions.vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ArrowUp, ArrowDown, ArrowUpDown, Inbox } from 'lucide-vue-next'
+import { useLocalization } from '@/composables/useLocalization'
+
+// Initialize localization
+const { trans } = useLocalization()
 
 interface Column {
   component: string
@@ -44,6 +48,7 @@ interface DataTableProps {
   visibleColumns?: string[]
   bulkActionsAvailable?: boolean
   resourceSlug?: string
+  columnExecutionRoute?: string
   modelClass?: string
   recordActions?: Action[]
   executionRoute?: string
@@ -51,6 +56,7 @@ interface DataTableProps {
   fixedActions?: boolean
   striped?: boolean
   infiniteScroll?: boolean
+  useAjax?: boolean
 }
 
 const props = withDefaults(defineProps<DataTableProps>(), {
@@ -63,6 +69,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   visibleColumns: () => [],
   bulkActionsAvailable: false,
   resourceSlug: '',
+  columnExecutionRoute: undefined,
   modelClass: undefined,
   recordActions: () => [],
   executionRoute: undefined,
@@ -70,11 +77,13 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   fixedActions: false,
   striped: false,
   infiniteScroll: false,
+  useAjax: false,
 })
 
 const emit = defineEmits<{
   sort: [column: string, direction: 'asc' | 'desc']
   'update:selectedRecords': [records: (number | string)[]]
+  'action-complete': [data?: any]
 }>()
 
 const selectedRecords = ref<Set<number | string>>(new Set())
@@ -161,6 +170,24 @@ const hasRecordActions = computed(() => {
   return props.records.some((record) => record._actions && record._actions.length > 0)
 })
 
+// Get max actions count across all records for consistent column width
+const maxActionsCount = computed(() => {
+  if (!props.records.length) return 3 // Default for skeleton
+  return Math.max(...props.records.map((record) =>
+    record._actions?.filter((a: Action) => !a.isHidden)?.length || 0
+  ), 1)
+})
+
+// Calculate actions column width based on max actions
+// Each button is 32px (h-8 w-8) + 4px gap, plus 32px padding (px-4 = 16px each side)
+const actionsColumnWidth = computed(() => {
+  const buttonSize = 32
+  const gap = 4
+  const padding = 32
+  const count = maxActionsCount.value
+  return `${(buttonSize * count) + (gap * (count - 1)) + padding}px`
+})
+
 // Get component for column type
 const getColumnComponent = (columnType: string) => {
   switch (columnType) {
@@ -217,17 +244,17 @@ const getColumnWidthClass = (column: Column, index: number): string => {
 </script>
 
 <template>
-  <div class="relative w-full bg-card">
+  <div class="relative w-full border-x border-border bg-card overflow-x-auto custom-scrollbar">
     <!-- Empty State -->
     <div v-if="!loading && !records.length" class="w-full">
-      <div class="py-20 px-4">
+      <div class="py-16 px-6">
         <slot name="empty">
           <div class="flex flex-col items-center justify-center text-center">
-            <div class="rounded-full bg-muted p-4 mb-4">
-              <Inbox class="h-10 w-10 text-muted-foreground" />
+            <div class="rounded-full bg-muted/80 p-4 mb-4 ring-1 ring-border/50">
+              <Inbox class="h-8 w-8 text-muted-foreground/70" />
             </div>
-            <h3 class="text-lg font-semibold text-foreground mb-2">No records found</h3>
-            <p class="text-sm text-muted-foreground max-w-sm">
+            <h3 class="text-base font-semibold text-foreground mb-1.5">No records found</h3>
+            <p class="text-sm text-muted-foreground max-w-sm leading-relaxed">
               There are no records to display. Try adjusting your filters or search query.
             </p>
           </div>
@@ -236,15 +263,15 @@ const getColumnWidthClass = (column: Column, index: number): string => {
     </div>
 
     <!-- Table Content (only show when there are records or loading) -->
-    <div v-else :class="[fixedActions && hasRecordActions ? 'overflow-x-auto custom-scrollbar' : '']">
-      <div :class="[fixedActions && hasRecordActions ? 'min-w-max' : '']">
+    <div v-else>
+      <div class="min-w-max">
         <!-- Table Header (Sticky at top when scrolling) -->
-        <div class="border-b border-border bg-muted/50 sticky top-0 z-10">
-          <div class="flex items-center">
+        <div class="border-b border-border bg-muted sticky top-0 z-10">
+          <div class="flex items-center w-full">
             <!-- Checkbox Column (if bulk actions available) -->
             <div
               v-if="bulkActionsAvailable"
-              class="flex items-center justify-center px-4 py-3.5 w-[48px] shrink-0"
+              class="flex items-center justify-center px-3 py-3 w-[52px] shrink-0 bg-muted"
             >
               <label class="inline-flex items-center">
                 <input
@@ -252,7 +279,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                   :checked="allSelected"
                   :indeterminate.prop="someSelected"
                   @change="toggleSelectAll"
-                  class="peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-background shadow-xs ring-offset-background transition-colors hover:border-input focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 checked:border-primary checked:bg-primary checked:text-primary-foreground cursor-pointer"
+                  class="peer size-4 shrink-0 appearance-none rounded border border-input bg-background shadow-sm ring-offset-background transition-all duration-150 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 checked:border-primary checked:bg-primary checked:text-primary-foreground cursor-pointer"
                 />
                 <svg
                   class="pointer-events-none absolute size-4 hidden peer-checked:block text-primary-foreground"
@@ -270,84 +297,98 @@ const getColumnWidthClass = (column: Column, index: number): string => {
             </div>
 
             <!-- Scrollable Header Columns -->
-            <div class="flex flex-1 min-w-0">
+            <div class="flex flex-1 min-w-0 bg-muted">
               <div
                 v-for="(column, index) in visibleColumnsFiltered"
                 :key="`header-${column.name}`"
                 :class="[
-                  'px-4 py-3.5 text-start text-xs font-medium uppercase tracking-wider',
-                  column.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : 'text-muted-foreground',
+                  'px-3 py-3 text-start text-xs font-semibold tracking-wide bg-muted',
+                  column.sortable ? 'cursor-pointer select-none hover:bg-accent hover:text-foreground transition-all duration-150' : 'text-muted-foreground',
                   getColumnWidthClass(column, index),
                   'shrink-0'
                 ]"
                 @click="handleSort(column)"
               >
-                <div class="flex items-center gap-2">
-                  <span>{{ column.label }}</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-muted-foreground">{{ column.label }}</span>
                   <component
                     :is="getSortIcon(column)"
                     v-if="column.sortable"
-                    class="h-4 w-4"
-                    :class="sortColumn === column.name ? 'text-foreground' : 'text-muted-foreground/50'"
+                    class="h-3.5 w-3.5 transition-colors"
+                    :class="sortColumn === column.name ? 'text-foreground' : 'text-muted-foreground/40'"
                   />
                 </div>
+              </div>
+
+              <!-- Inline Actions Header (when not fixed) -->
+              <div
+                v-if="!fixedActions && hasRecordActions"
+                class="px-3 py-3 text-end text-xs font-semibold tracking-wide bg-muted min-w-[160px] ml-auto shrink-0"
+              >
+                <span class="text-muted-foreground">{{ trans('tables::tables.columns.actions') }}</span>
               </div>
             </div>
 
             <!-- Fixed Actions Header -->
-            <div v-if="fixedActions && hasRecordActions" class="sticky end-0 z-20 border-s border-border bg-muted flex items-center justify-end px-4 py-3.5 shrink-0 min-w-[180px]">
-              <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Actions</span>
+            <div
+              v-if="fixedActions && hasRecordActions"
+              class="sticky end-0 z-20 border-s border-border bg-muted flex items-center justify-center px-3 py-3 shrink-0"
+              :style="{ width: actionsColumnWidth, minWidth: actionsColumnWidth }"
+            >
+              <span class="text-xs font-semibold tracking-wide text-muted-foreground whitespace-nowrap">{{ trans('tables::tables.columns.actions') }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Table Body (no scroll - parent TableRenderer handles scrolling) -->
-        <div class="divide-y divide-border">
+        <!-- Table Body (no scroll - parent Table handles scrolling) -->
+        <div class="divide-y divide-border/50">
           <!-- Loading State -->
           <template v-if="loading">
             <div
               v-for="i in skeletonRows"
               :key="`skeleton-${i}`"
-              class="group transition-colors hover:bg-muted/30"
+              class="group transition-colors flex items-center min-w-full"
               :class="[
-                i % 2 === 0 ? 'bg-muted/20' : 'bg-card'
+                striped && i % 2 !== 0 ? 'bg-muted' : 'bg-card'
               ]"
             >
-              <div class="flex items-center">
-                <!-- Checkbox Skeleton (if bulk actions available) -->
-                <div
-                  v-if="bulkActionsAvailable"
-                  class="flex items-center justify-center px-4 py-4 w-[48px] shrink-0"
-                >
-                  <Skeleton class="h-4 w-4 rounded" />
-                </div>
+              <!-- Checkbox Skeleton (if bulk actions available) -->
+              <div
+                v-if="bulkActionsAvailable"
+                class="flex items-center justify-center px-3 py-3.5 w-[52px] shrink-0"
+              >
+                <Skeleton class="h-4 w-4 rounded" />
+              </div>
 
-                <!-- Scrollable Skeleton Columns -->
-                <div class="flex flex-1 min-w-0">
-                  <div
-                    v-for="(column, index) in visibleColumnsFiltered"
-                    :key="`skeleton-col-${column.name}`"
-                    :class="[
-                      'px-4 py-4 shrink-0',
-                      getColumnWidthClass(column, index)
-                    ]"
-                  >
-                    <Skeleton class="h-5 w-full max-w-[200px]" />
-                  </div>
-                </div>
-
-                <!-- Fixed Actions Skeleton -->
+              <!-- Scrollable Skeleton Columns -->
+              <div class="flex flex-1 min-w-0">
                 <div
-                  v-if="fixedActions && hasRecordActions"
-                  class="sticky end-0 z-20 border-s border-border flex items-center justify-end gap-1.5 px-4 py-4 self-stretch shrink-0 min-w-[180px]"
+                  v-for="(column, index) in visibleColumnsFiltered"
+                  :key="`skeleton-col-${column.name}`"
                   :class="[
-                    i % 2 === 0 ? 'bg-muted/20' : 'bg-card'
+                    'px-3 py-3.5 shrink-0',
+                    getColumnWidthClass(column, index)
                   ]"
                 >
-                  <Skeleton class="h-8 w-8 rounded-md" />
-                  <Skeleton class="h-8 w-8 rounded-md" />
-                  <Skeleton class="h-8 w-8 rounded-md" />
+                  <Skeleton class="h-4 w-full max-w-[180px] rounded" />
                 </div>
+
+                <!-- Inline Actions Skeleton (when not fixed) -->
+                <div v-if="!fixedActions && hasRecordActions" class="px-3 py-3.5 flex items-center justify-end gap-1.5 min-w-[160px] ml-auto shrink-0">
+                  <Skeleton v-for="n in maxActionsCount" :key="n" class="h-7 w-7 rounded-md" />
+                </div>
+              </div>
+
+              <!-- Fixed Actions Skeleton -->
+              <div
+                v-if="fixedActions && hasRecordActions"
+                class="sticky end-0 z-20 border-s border-border flex items-center justify-center gap-1.5 px-3 py-3.5 self-stretch shrink-0"
+                :class="[
+                  striped && i % 2 !== 0 ? 'bg-muted' : 'bg-card'
+                ]"
+                :style="{ width: actionsColumnWidth, minWidth: actionsColumnWidth }"
+              >
+                <Skeleton v-for="n in maxActionsCount" :key="n" class="h-7 w-7 rounded-md" />
               </div>
             </div>
           </template>
@@ -356,8 +397,8 @@ const getColumnWidthClass = (column: Column, index: number): string => {
           <TransitionGroup
             v-if="records.length > 0"
             enter-active-class="transition-all duration-200 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
+            enter-from-class="opacity-0 translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
             leave-active-class="transition-all duration-150 ease-in"
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
@@ -365,88 +406,66 @@ const getColumnWidthClass = (column: Column, index: number): string => {
             <div
               v-for="(record, index) in records"
               :key="record.id"
-              class="group transition-colors hover:bg-muted/30"
+              class="group transition-all duration-150 flex items-center min-w-full"
               :class="[
-                striped ? (index % 2 === 0 ? 'bg-card' : 'bg-muted/20') : 'bg-card',
-                selectedRecords.has(record.id) && 'bg-primary/5',
+                striped ? (index % 2 === 0 ? 'bg-card hover:bg-accent' : 'bg-muted hover:bg-accent') : 'bg-card hover:bg-accent',
+                selectedRecords.has(record.id) && 'bg-primary/10 hover:bg-primary/15 ring-1 ring-inset ring-primary/30',
               ]"
             >
-              <div class="flex items-center">
-                <!-- Checkbox Column (if bulk actions available) -->
-                <div
-                  v-if="bulkActionsAvailable"
-                  class="flex items-center justify-center px-4 py-4 w-[48px] shrink-0"
-                >
-                  <label class="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      :checked="isRecordSelected(record.id)"
-                      @change="() => toggleSelectRecord(record.id)"
-                      class="peer size-4 shrink-0 appearance-none rounded-[4px] border border-input bg-background shadow-xs ring-offset-background transition-colors hover:border-input focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 checked:border-primary checked:bg-primary checked:text-primary-foreground cursor-pointer"
-                    />
-                    <svg
-                      class="pointer-events-none absolute size-4 hidden peer-checked:block text-primary-foreground"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </label>
-                </div>
-
-                <!-- Scrollable Data Columns -->
-                <div class="flex flex-1 min-w-0">
-                  <div
-                    v-for="(column, columnIndex) in visibleColumnsFiltered"
-                    :key="`cell-${column.name}`"
-                    :class="[
-                      'px-4 py-4 text-sm shrink-0',
-                      getColumnWidthClass(column, columnIndex),
-                      columnIndex === 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
-                    ]"
+              <!-- Checkbox Column (if bulk actions available) -->
+              <div
+                v-if="bulkActionsAvailable"
+                class="flex items-center justify-center px-3 py-3.5 w-[52px] shrink-0"
+              >
+                <label class="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    :checked="isRecordSelected(record.id)"
+                    @change="() => toggleSelectRecord(record.id)"
+                    class="peer size-4 shrink-0 appearance-none rounded border border-input bg-background shadow-sm ring-offset-background transition-all duration-150 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 checked:border-primary checked:bg-primary checked:text-primary-foreground cursor-pointer"
+                  />
+                  <svg
+                    class="pointer-events-none absolute size-4 hidden peer-checked:block text-primary-foreground"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                   >
-                    <component
-                      :is="getColumnComponent(column.component)"
-                      :value="record[column.name]"
-                      :color="record._colors?.[column.name]"
-                      :icon="record._icons?.[column.name]"
-                      :size="record._sizes?.[column.name]"
-                      :description="record._descriptions?.[column.name]"
-                      :record-id="record.id"
-                      :resource-slug="resourceSlug"
-                      v-bind="column"
-                    />
-                  </div>
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </label>
+              </div>
 
-                  <!-- Inline Actions (when not fixed) -->
-                  <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-4 py-4 flex items-center justify-end min-w-[180px] ml-auto">
-                    <slot name="actions" :record="record">
-                      <RecordActions
-                        :actions="record._actions"
-                        :record="record"
-                        :resource-name="resourceSlug"
-                        :model-class="modelClass"
-                        :execution-route="executionRoute"
-                        variant="inline"
-                      />
-                    </slot>
-                  </div>
-                </div>
-
-                <!-- Fixed Actions Cell -->
+              <!-- Scrollable Data Columns -->
+              <div class="flex flex-1 min-w-0">
                 <div
-                  v-if="fixedActions && record._actions && record._actions.length > 0"
-                  class="sticky end-0 z-20 border-s border-border transition-colors flex items-center justify-end gap-1.5 px-4 self-stretch shrink-0 min-w-[180px]"
+                  v-for="(column, columnIndex) in visibleColumnsFiltered"
+                  :key="`cell-${column.name}`"
                   :class="[
-                    index % 2 === 0 ? 'bg-card group-hover:bg-muted' : 'bg-muted group-hover:bg-muted',
-                    selectedRecords.has(record.id) && 'bg-primary/10 group-hover:bg-primary/20',
+                    'px-3 py-3.5 text-sm shrink-0',
+                    getColumnWidthClass(column, columnIndex),
+                    columnIndex === 0 ? 'font-medium text-foreground' : 'text-foreground/80',
                   ]"
                 >
+                  <component
+                    :is="getColumnComponent(column.component)"
+                    :value="record[column.name]"
+                    :color="record._colors?.[column.name]"
+                    :icon="record._icons?.[column.name]"
+                    :size="record._sizes?.[column.name]"
+                    :description="record._descriptions?.[column.name]"
+                    :record-id="record.id"
+                    :resource-slug="resourceSlug"
+                    :column-execution-route="columnExecutionRoute"
+                    v-bind="column"
+                  />
+                </div>
+
+                <!-- Inline Actions (when not fixed) -->
+                <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-3 py-3.5 flex items-center justify-end min-w-[160px] ml-auto shrink-0">
                   <slot name="actions" :record="record">
                     <RecordActions
                       :actions="record._actions"
@@ -455,9 +474,33 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                       :model-class="modelClass"
                       :execution-route="executionRoute"
                       variant="inline"
+                      @action-complete="(data) => emit('action-complete', data)"
                     />
                   </slot>
                 </div>
+              </div>
+
+              <!-- Fixed Actions Cell -->
+              <div
+                v-if="fixedActions && record._actions && record._actions.length > 0"
+                class="sticky end-0 z-20 border-s border-border transition-all duration-150 flex items-center justify-center gap-1.5 px-3 self-stretch shrink-0"
+                :class="[
+                  striped ? (index % 2 === 0 ? 'bg-card group-hover:bg-accent' : 'bg-muted group-hover:bg-accent') : 'bg-card group-hover:bg-accent',
+                  selectedRecords.has(record.id) && 'bg-primary/10 group-hover:bg-primary/15',
+                ]"
+                :style="{ width: actionsColumnWidth, minWidth: actionsColumnWidth }"
+              >
+                <slot name="actions" :record="record">
+                  <RecordActions
+                    :actions="record._actions"
+                    :record="record"
+                    :resource-name="resourceSlug"
+                    :model-class="modelClass"
+                    :execution-route="executionRoute"
+                    variant="inline"
+                    @action-complete="(data) => emit('action-complete', data)"
+                  />
+                </slot>
               </div>
             </div>
           </TransitionGroup>
@@ -470,53 +513,50 @@ const getColumnWidthClass = (column: Column, index: number): string => {
 <style scoped>
 /* Smooth transitions for row hover states */
 .group {
-  transition: background-color 0.15s ease-in-out;
+  transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 </style>
 
 <!-- Global scrollbar styles (not scoped for proper pseudo-element support) -->
 <style>
-/* Custom scrollbar for DataTable */
+/* Custom scrollbar for DataTable - thin and elegant */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #e5e5e5;
-    border-radius: 4px;
+    background: transparent;
+    margin: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #a3a3a3;
-    border-radius: 4px;
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+    transition: background 0.15s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #737373;
+    background: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* Dark mode scrollbar */
-.dark .custom-scrollbar::-webkit-scrollbar-track {
-    background: #262626;
-}
-
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #525252;
+    background: hsl(var(--muted-foreground) / 0.25);
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #737373;
+    background: hsl(var(--muted-foreground) / 0.4);
 }
 
 /* Firefox scrollbar */
 .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #a3a3a3 #e5e5e5;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
 }
 
 .dark .custom-scrollbar {
-    scrollbar-color: #525252 #262626;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
 }
 
 /* Scrollbar corner */

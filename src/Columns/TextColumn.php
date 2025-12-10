@@ -22,6 +22,8 @@ class TextColumn extends Column
 
     protected ?string $icon = null;
 
+    protected ?string $iconPosition = 'before';
+
     protected ?string $weight = null;
 
     protected ?string $moneyFormat = null;
@@ -29,6 +31,12 @@ class TextColumn extends Column
     protected ?Closure $colorCallback = null;
 
     protected bool $html = false;
+
+    protected ?string $separator = null;
+
+    protected bool $listWithLineBreaks = false;
+
+    protected bool $bulleted = false;
 
     public function limit(?int $characters): static
     {
@@ -98,6 +106,13 @@ class TextColumn extends Column
         return $this;
     }
 
+    public function iconPosition(string $position): static
+    {
+        $this->iconPosition = $position;
+
+        return $this;
+    }
+
     public function weight(?string $weight): static
     {
         $this->weight = $weight;
@@ -123,6 +138,28 @@ class TextColumn extends Column
         return $this;
     }
 
+    public function separator(?string $separator = ','): static
+    {
+        $this->separator = $separator;
+
+        return $this;
+    }
+
+    public function listWithLineBreaks(bool $condition = true): static
+    {
+        $this->listWithLineBreaks = $condition;
+
+        return $this;
+    }
+
+    public function bulleted(bool $condition = true): static
+    {
+        $this->bulleted = $condition;
+        $this->listWithLineBreaks = true;
+
+        return $this;
+    }
+
     protected function getVueComponent(): string
     {
         return 'TextColumn';
@@ -139,11 +176,15 @@ class TextColumn extends Column
             'dateTimeFormat' => $this->dateTimeFormat,
             'dateFormat' => $this->dateFormat,
             'icon' => $this->icon,
+            'iconPosition' => $this->iconPosition,
             'weight' => $this->weight,
             'moneyFormat' => $this->moneyFormat ? json_decode($this->moneyFormat, true) : null,
             'colorCallback' => $this->colorCallback !== null,
             'html' => $this->html,
             'since' => $this->since,
+            'separator' => $this->separator,
+            'listWithLineBreaks' => $this->listWithLineBreaks,
+            'bulleted' => $this->bulleted,
         ];
     }
 
@@ -163,6 +204,7 @@ class TextColumn extends Column
             'dateTimeFormat' => $this->dateTimeFormat,
             'dateFormat' => $this->dateFormat,
             'icon' => $this->icon,
+            'iconPosition' => $this->iconPosition,
             'weight' => $this->weight,
             'moneyFormat' => $this->moneyFormat ? json_decode($this->moneyFormat, true) : null,
         ];

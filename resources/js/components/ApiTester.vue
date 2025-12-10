@@ -376,7 +376,7 @@ const resetParamsForOperation = () => {
     if (selectedOperation.value === 'index') {
         queryParams.value = [
             { key: 'page', value: '1', enabled: true },
-            { key: 'per_page', value: String(props.apiResource?.perPage || 15), enabled: true },
+            { key: 'per_page', value: String(props.apiResource?.perPage || 12), enabled: true },
         ]
     } else {
         queryParams.value = []
