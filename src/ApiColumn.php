@@ -98,7 +98,6 @@ class ApiColumn extends Component
         return $this;
     }
 
-
     /**
      * Set a description for documentation.
      */
