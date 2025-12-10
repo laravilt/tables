@@ -104,6 +104,7 @@ class Table implements InertiaSerializable
 
     /**
      * Generic options for custom configuration.
+     *
      * @var array<string, mixed>
      */
     protected array $options = [];
@@ -506,18 +507,18 @@ class Table implements InertiaSerializable
         $registry = app(\Laravilt\Panel\PanelRegistry::class);
         $panel = $registry->getCurrent();
 
-        if (!$panel) {
+        if (! $panel) {
             $panel = $registry->getDefault();
         }
 
-        if (!$panel) {
+        if (! $panel) {
             $allPanels = $registry->all();
             $panel = reset($allPanels) ?: null;
         }
 
         $panelId = $panel?->getId() ?? 'admin';
 
-        return $panelId . '.resources.' . $this->resourceSlug . '.column.update';
+        return $panelId.'.resources.'.$this->resourceSlug.'.column.update';
     }
 
     /**
