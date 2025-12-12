@@ -93,13 +93,26 @@ const extractedBulkActions = computed(() => {
     }))
 })
 
+// Check if table is configured for grid-only mode
+const isGridOnly = computed(() => {
+    return props.table.gridOnly === true && props.table.card !== null && props.table.card !== undefined
+})
+
 // Computed to determine if we should show grid view
 const isGridView = computed(() => {
+    // If gridOnly is enabled, always show grid
+    if (isGridOnly.value) {
+        return true
+    }
     return props.currentView === 'grid' && props.table.card !== null && props.table.card !== undefined
 })
 
 // Check if table has card configuration (for view toggle visibility)
+// Hide toggle if gridOnly is enabled (only grid is available)
 const hasGridOption = computed(() => {
+    if (isGridOnly.value) {
+        return false // Don't show toggle when grid-only
+    }
     return props.table.card !== null && props.table.card !== undefined
 })
 

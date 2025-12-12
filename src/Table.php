@@ -80,6 +80,8 @@ class Table implements InertiaSerializable
 
     protected int $cardsPerRow = 3;
 
+    protected bool $gridOnly = false;
+
     protected ?string $emptyStateHeading = null;
 
     protected ?string $emptyStateDescription = null;
@@ -435,6 +437,24 @@ class Table implements InertiaSerializable
     public function hasGrid(): bool
     {
         return $this->card !== null;
+    }
+
+    /**
+     * Set grid-only mode (hide table view, show only grid).
+     */
+    public function gridOnly(bool $condition = true): static
+    {
+        $this->gridOnly = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Check if grid-only mode is enabled.
+     */
+    public function isGridOnly(): bool
+    {
+        return $this->gridOnly;
     }
 
     /**
@@ -957,6 +977,7 @@ class Table implements InertiaSerializable
             // Grid-specific properties
             'card' => $this->card?->toInertiaProps(),
             'cardsPerRow' => $this->cardsPerRow,
+            'gridOnly' => $this->gridOnly,
             'emptyState' => [
                 'heading' => $this->emptyStateHeading ?? 'No records found',
                 'description' => $this->emptyStateDescription,
