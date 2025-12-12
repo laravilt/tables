@@ -118,8 +118,14 @@ const hasGridOption = computed(() => {
 
 const sortColumn = ref<string | null>(props.table.defaultSortColumn || null)
 const sortDirection = ref<'asc' | 'desc'>(props.table.defaultSortDirection || 'asc')
+const activeGroup = ref<string | null>(props.table.activeGroup || props.table.defaultGroup || null)
 const selectedRecords = ref<(number | string)[]>([])
 const searchQuery = ref<string>('')
+
+// Computed: Infinite scroll is disabled when grouping is active
+const isInfiniteScrollActive = computed(() => {
+    return props.table.infiniteScroll && !activeGroup.value
+})
 const activeFilters = ref<Record<string, any>>({})
 const clearSelectionsKey = ref<number>(0)
 const isLoadingData = ref<boolean>(false)
@@ -260,7 +266,7 @@ const isFilterReload = ref<boolean>(false)
 
 // Watch for records changes and append or replace based on infinite scroll
 watch(() => props.records, (newRecords, oldRecords) => {
-    if (props.table.infiniteScroll) {
+    if (isInfiniteScrollActive.value) {
         // If it's a filter reload OR page 1, replace all records
         // Only append if loading more pages (page > 1 and NOT a filter reload)
         if (isFilterReload.value || props.pagination.current_page === 1) {
@@ -289,7 +295,7 @@ watch([searchQuery, activeFilters, sortColumn, sortDirection], (newValues, oldVa
 
     if (!hasActualChange) return
 
-    if (props.table.infiniteScroll) {
+    if (isInfiniteScrollActive.value) {
         // Don't clear records here - let skeleton show by setting isLoadingData
         // Records will be replaced when new data arrives via the other watcher
         currentPage.value = 1
@@ -301,7 +307,7 @@ const handleSort = (column: string, direction: 'asc' | 'desc') => {
     sortDirection.value = direction
 
     // For infinite scroll, mark as filter reload to replace records instead of appending
-    if (props.table.infiniteScroll) {
+    if (isInfiniteScrollActive.value) {
         isFilterReload.value = true
         currentPage.value = 1
     }
@@ -351,6 +357,63 @@ const handleUpdateSelectedRecords = (records: (number | string)[]) => {
     selectedRecords.value = records
 }
 
+// Handle group change
+const handleGroupChange = (group: string | null) => {
+    activeGroup.value = group
+
+    // Reset infinite scroll state when toggling grouping
+    if (props.table.infiniteScroll) {
+        currentPage.value = 1
+        isFilterReload.value = true
+        // Disconnect observer when grouping is active
+        if (observer && group) {
+            observer.disconnect()
+        }
+    }
+
+    // Update URL with group parameter
+    const urlParams = new URLSearchParams(window.location.search)
+    if (group) {
+        urlParams.set('group', group)
+    } else {
+        urlParams.delete('group')
+    }
+
+    // If using AJAX mode, reload data
+    if (props.useAjax) {
+        updateUrl({ group: group || undefined })
+        reloadData()
+    } else {
+        // For Inertia, do a full navigation
+        const currentUrl = new URL(window.location.href)
+        currentUrl.search = urlParams.toString()
+        router.get(currentUrl.toString(), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        })
+    }
+
+    // Re-setup infinite scroll observer when grouping is disabled
+    if (props.table.infiniteScroll && !group) {
+        setTimeout(() => {
+            setupInfiniteScroll()
+        }, 100)
+    }
+}
+
+// Handle reorder events from DataTable
+const handleReorder = async (items: { id: number | string, order: number }[]) => {
+    // The DataTable component handles the actual reorder request
+    // This handler is for any additional processing needed at Table level
+    // For now, we just reload data after reorder to ensure consistency
+    if (props.useAjax) {
+        // Wait a moment for the reorder to complete, then reload
+        setTimeout(() => {
+            reloadData()
+        }, 500)
+    }
+}
+
 const bulkActionData = computed(() => ({
     ids: selectedRecords.value,
     model: props.table.model,
@@ -393,6 +456,11 @@ const reloadData = async (page?: number, resetPage = false) => {
             params[key] = value
         }
     })
+
+    // Add group if active
+    if (activeGroup.value) {
+        params.group = activeGroup.value
+    }
 
     // Use AJAX (fetch) if useAjax is true - this avoids Inertia page reload
     if (props.useAjax) {
@@ -572,7 +640,7 @@ const scrollContainerRef = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
 const setupInfiniteScroll = () => {
-    if (!props.table.infiniteScroll) return
+    if (!isInfiniteScrollActive.value) return
 
     // Clean up existing observer
     if (observer) {
@@ -599,7 +667,7 @@ const setupInfiniteScroll = () => {
 
 // Watch for tableEndRef changes and set up observer
 watch(tableEndRef, (newRef) => {
-    if (newRef && props.table.infiniteScroll) {
+    if (newRef && isInfiniteScrollActive.value) {
         setupInfiniteScroll()
     }
 })
@@ -613,7 +681,7 @@ watch(() => props.currentView, (newView, oldView) => {
         }
 
         // Re-setup observer after view change (nextTick to wait for DOM update)
-        if (props.table.infiniteScroll) {
+        if (isInfiniteScrollActive.value) {
             setTimeout(() => {
                 setupInfiniteScroll()
             }, 100)
@@ -706,6 +774,12 @@ onMounted(() => {
         sortDirection.value = (directionParam === 'asc' || directionParam === 'desc') ? directionParam : 'asc'
     }
 
+    // Initialize group from URL
+    const groupParam = urlParams.get('group')
+    if (groupParam) {
+        activeGroup.value = groupParam
+    }
+
     // Mark as initialized to enable watchers
     isInitialized.value = true
 
@@ -748,6 +822,11 @@ onMounted(() => {
             }
         })
 
+        // Add group if present
+        if (activeGroup.value) {
+            params.group = activeGroup.value
+        }
+
         // Update URL without reloading
         currentUrl.search = new URLSearchParams(params).toString()
         window.history.replaceState({}, '', currentUrl.toString())
@@ -785,12 +864,15 @@ onUnmounted(() => {
                 :show-sort="isGridView"
                 :sort-column="sortColumn"
                 :sort-direction="sortDirection"
+                :groups="table.groups"
+                :active-group="activeGroup"
                 v-model:visible-columns="visibleColumns"
                 @update:search="handleSearch"
                 @update:filters="handleFilterChange"
                 @remove-filter="removeFilter"
                 @clear-filters="clearAllFilters"
                 @update:sort="handleSort"
+                @update:active-group="handleGroupChange"
             >
                 <template #filters>
                     <div
@@ -839,7 +921,7 @@ onUnmounted(() => {
             <DataTable
                 v-if="!isGridView"
                 :columns="table.columns"
-                :records="relationContext ? enhancedRecords : (table.infiniteScroll ? allRecords : records)"
+                :records="relationContext ? enhancedRecords : (isInfiniteScrollActive ? allRecords : records)"
                 :record-actions="recordActions"
                 :loading="loading || isLoadingData"
                 :sort-column="sortColumn"
@@ -852,18 +934,24 @@ onUnmounted(() => {
                 :clear-selections="clearSelectionsKey"
                 :fixed-actions="table.fixedActions"
                 :striped="table.striped"
-                :infinite-scroll="table.infiniteScroll"
+                :infinite-scroll="isInfiniteScrollActive"
                 :use-ajax="useAjax"
+                :reorderable="table.reorderable"
+                :reorderable-column="table.reorderableColumn"
+                :reorder-route="table.reorderRoute"
+                :groups="table.groups"
+                :active-group="activeGroup"
                 @sort="handleSort"
                 @update:selected-records="handleUpdateSelectedRecords"
                 @action-complete="handleActionComplete"
+                @reorder="handleReorder"
             />
 
             <!-- Render CardGrid for grid view -->
             <CardGrid
                 v-else
                 :grid="{ ...table, card: table.card }"
-                :records="relationContext ? enhancedRecords : (table.infiniteScroll ? allRecords : records)"
+                :records="relationContext ? enhancedRecords : (isInfiniteScrollActive ? allRecords : records)"
                 :record-actions="recordActions"
                 :loading="loading || isLoadingData"
                 :loading-more="isLoadingMore"
@@ -877,7 +965,7 @@ onUnmounted(() => {
             />
 
             <!-- Infinite Scroll Loading Indicator & Observer (inside scrollable area) -->
-            <div v-if="table.infiniteScroll" class="border-t border-border bg-muted/50">
+            <div v-if="isInfiniteScrollActive" class="border-t border-border bg-muted/50">
                 <div v-if="isLoadingMore" class="p-8">
                     <div class="flex items-center justify-center gap-2">
                         <div class="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
@@ -896,7 +984,7 @@ onUnmounted(() => {
             </div> <!-- End Scrollable Records Area -->
 
             <!-- Pagination (Fixed at bottom) -->
-            <div v-if="!table.infiniteScroll && pagination && pagination.total > 0" class="flex-shrink-0 p-4 border-t border-border bg-muted/50">
+            <div v-if="!isInfiniteScrollActive && pagination && pagination.total > 0" class="flex-shrink-0 p-4 border-t border-border bg-muted/50">
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <!-- Pagination Info (left side) -->
                     <div class="hidden sm:block text-sm text-muted-foreground whitespace-nowrap order-1">

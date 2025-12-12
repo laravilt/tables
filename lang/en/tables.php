@@ -32,6 +32,8 @@ return [
         'active_filters' => 'Active filters',
         'sort_by' => 'Sort by',
         'search' => 'Search',
+        'group_by' => 'Group by',
+        'no_grouping' => 'No grouping',
     ],
 
     // Search & Filter

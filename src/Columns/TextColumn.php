@@ -38,6 +38,24 @@ class TextColumn extends Column
 
     protected bool $bulleted = false;
 
+    protected ?string $countsRelation = null;
+
+    /**
+     * Count a relationship for this column.
+     * The column name should be `relation_count` and will be populated via withCount.
+     */
+    public function counts(string $relationship): static
+    {
+        $this->countsRelation = $relationship;
+
+        return $this;
+    }
+
+    public function getCountsRelation(): ?string
+    {
+        return $this->countsRelation;
+    }
+
     public function limit(?int $characters): static
     {
         $this->limit = $characters;

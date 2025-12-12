@@ -65,6 +65,17 @@ class Table implements InertiaSerializable
 
     protected ?string $reorderableColumn = null;
 
+    protected ?string $reorderRoute = null;
+
+    /**
+     * @var array<int, Grouping\Group>
+     */
+    protected array $groups = [];
+
+    protected ?string $defaultGroup = null;
+
+    protected ?int $groupedPerPage = null;
+
     protected ?string $pollInterval = null;
 
     protected ?Closure $query = null;
@@ -74,6 +85,8 @@ class Table implements InertiaSerializable
     protected string $defaultSortDirection = 'desc';
 
     protected bool $fixedActions = false;
+
+    protected string $filtersLayout = 'sidebar';
 
     // Grid-specific properties
     protected ?Card $card = null;
@@ -329,6 +342,18 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * Set the filters layout.
+     *
+     * @param  string  $layout  One of 'sidebar', 'dropdown', 'above_table'
+     */
+    public function filtersLayout(string $layout): static
+    {
+        $this->filtersLayout = $layout;
+
+        return $this;
+    }
+
+    /**
      * Enable hoverable rows for the table.
      */
     public function hoverable(bool $condition = true): static
@@ -409,6 +434,78 @@ class Table implements InertiaSerializable
         $this->infiniteScroll = $condition;
 
         return $this;
+    }
+
+    /**
+     * Set the grouping options for the table.
+     *
+     * @param  array<int, Grouping\Group>  $groups
+     */
+    public function groups(array $groups): static
+    {
+        $this->groups = $groups;
+
+        return $this;
+    }
+
+    /**
+     * Set the default group column.
+     */
+    public function defaultGroup(?string $column): static
+    {
+        $this->defaultGroup = $column;
+
+        return $this;
+    }
+
+    /**
+     * Set the per-page limit when grouping is active.
+     * Use null to use the default (at least 50), or a specific number.
+     * Use -1 to disable pagination when grouping.
+     */
+    public function groupedPerPage(?int $perPage): static
+    {
+        $this->groupedPerPage = $perPage;
+
+        return $this;
+    }
+
+    /**
+     * Get the groups configuration.
+     *
+     * @return array<int, Grouping\Group>
+     */
+    public function getGroups(): array
+    {
+        return $this->groups;
+    }
+
+    /**
+     * Check if grouping is enabled.
+     */
+    public function hasGroups(): bool
+    {
+        return count($this->groups) > 0;
+    }
+
+    /**
+     * Get the current active group based on request or default.
+     */
+    public function getActiveGroup(): ?Grouping\Group
+    {
+        $groupColumn = request()->get('group', $this->defaultGroup);
+
+        if (! $groupColumn) {
+            return null;
+        }
+
+        foreach ($this->groups as $group) {
+            if ($group->getColumn() === $groupColumn) {
+                return $group;
+            }
+        }
+
+        return null;
     }
 
     // Grid-specific methods
@@ -539,6 +636,39 @@ class Table implements InertiaSerializable
         $panelId = $panel?->getId() ?? 'admin';
 
         return $panelId.'.resources.'.$this->resourceSlug.'.column.update';
+    }
+
+    /**
+     * Get the reorder route name.
+     */
+    public function getReorderRouteName(): string
+    {
+        // Get current panel from registry
+        $registry = app(\Laravilt\Panel\PanelRegistry::class);
+        $panel = $registry->getCurrent();
+
+        if (! $panel) {
+            $panel = $registry->getDefault();
+        }
+
+        if (! $panel) {
+            $allPanels = $registry->all();
+            $panel = reset($allPanels) ?: null;
+        }
+
+        $panelId = $panel?->getId() ?? 'admin';
+
+        return $panelId.'.resources.'.$this->resourceSlug.'.reorder';
+    }
+
+    /**
+     * Set a custom reorder route.
+     */
+    public function reorderRoute(string $route): static
+    {
+        $this->reorderRoute = $route;
+
+        return $this;
     }
 
     /**
@@ -765,6 +895,29 @@ class Table implements InertiaSerializable
 
         $query = call_user_func($this->query);
 
+        // Apply withCount for columns using counts()
+        $countsRelations = collect($this->columns)
+            ->filter(fn (Column $column) => $column instanceof Columns\TextColumn && $column->getCountsRelation())
+            ->map(fn (Column $column) => $column->getCountsRelation())
+            ->unique()
+            ->toArray();
+
+        if (! empty($countsRelations)) {
+            $query->withCount($countsRelations);
+        }
+
+        // Eager load relations for columns using dot notation (e.g., 'customer.full_name')
+        $relations = collect($this->columns)
+            ->map(fn (Column $column) => $column->getName())
+            ->filter(fn (string $name) => str_contains($name, '.'))
+            ->map(fn (string $name) => explode('.', $name)[0])
+            ->unique()
+            ->toArray();
+
+        if (! empty($relations)) {
+            $query->with($relations);
+        }
+
         // Apply search
         $search = request()->get('search');
         if ($search && $this->searchable) {
@@ -790,6 +943,14 @@ class Table implements InertiaSerializable
             }
         }
 
+        // Get active group
+        $activeGroup = $this->getActiveGroup();
+
+        // Apply group ordering first (if grouping is active)
+        if ($activeGroup && $activeGroup->shouldOrderQuery()) {
+            $query->orderBy($activeGroup->getColumn(), 'asc');
+        }
+
         // Apply sorting
         // Use query() instead of get() to avoid conflict with middleware setting 'direction' attribute
         $sortColumn = request()->query('sort', $this->defaultSortColumn);
@@ -801,18 +962,83 @@ class Table implements InertiaSerializable
         }
 
         if ($sortColumn) {
-            $query->orderBy($sortColumn, $sortDirection);
+            // Handle sorting by relation columns (e.g., 'customer.first_name')
+            if (str_contains($sortColumn, '.')) {
+                [$relationName, $relationColumn] = explode('.', $sortColumn, 2);
+
+                // Get the model to determine table names
+                $model = $query->getModel();
+                $mainTable = $model->getTable();
+
+                // Check if the relation exists on the model
+                if (method_exists($model, $relationName)) {
+                    $relation = $model->{$relationName}();
+                    $relatedModel = $relation->getRelated();
+                    $relatedTable = $relatedModel->getTable();
+
+                    // Check if the column exists in the related table (skip virtual/accessor columns)
+                    $schema = $query->getConnection()->getSchemaBuilder();
+                    $columnExists = $schema->hasColumn($relatedTable, $relationColumn);
+
+                    // Handle virtual columns like 'full_name' by sorting on first real column (e.g., first_name)
+                    if (! $columnExists && $relationColumn === 'full_name') {
+                        // Try to sort by first_name instead for full_name accessor
+                        if ($schema->hasColumn($relatedTable, 'first_name')) {
+                            $relationColumn = 'first_name';
+                            $columnExists = true;
+                        }
+                    }
+
+                    if ($columnExists) {
+                        // Handle BelongsTo relation
+                        if ($relation instanceof \Illuminate\Database\Eloquent\Relations\BelongsTo) {
+                            $foreignKey = $relation->getForeignKeyName();
+                            $ownerKey = $relation->getOwnerKeyName();
+
+                            $query->leftJoin($relatedTable, "{$mainTable}.{$foreignKey}", '=', "{$relatedTable}.{$ownerKey}")
+                                ->orderBy("{$relatedTable}.{$relationColumn}", $sortDirection)
+                                ->select("{$mainTable}.*");
+                        }
+                        // Handle HasOne relation
+                        elseif ($relation instanceof \Illuminate\Database\Eloquent\Relations\HasOne) {
+                            $foreignKey = $relation->getForeignKeyName();
+                            $localKey = $relation->getLocalKeyName();
+
+                            $query->leftJoin($relatedTable, "{$mainTable}.{$localKey}", '=', "{$relatedTable}.{$foreignKey}")
+                                ->orderBy("{$relatedTable}.{$relationColumn}", $sortDirection)
+                                ->select("{$mainTable}.*");
+                        }
+                    }
+                }
+            } else {
+                $query->orderBy($sortColumn, $sortDirection);
+            }
         }
 
         // Get per_page from request or use default
         $perPage = request()->get('per_page', $this->perPage);
 
+        // When grouping is active, adjust pagination
+        $shouldPaginate = $this->paginated;
+        if ($activeGroup && ! request()->has('per_page')) {
+            if ($this->groupedPerPage === -1) {
+                // Explicitly disable pagination when grouping (use with caution - may timeout)
+                $shouldPaginate = false;
+            } elseif ($this->groupedPerPage !== null && $this->groupedPerPage > 0) {
+                // Use custom per-page for grouped view
+                $perPage = $this->groupedPerPage;
+            } else {
+                // Default: use higher per-page when grouping to show more records per page
+                $perPage = 100;
+            }
+        }
+
         // Paginate or get all
-        if ($this->paginated) {
+        if ($shouldPaginate) {
             $paginator = $query->paginate($perPage);
 
             return [
-                'data' => $this->processRecords($paginator->items()),
+                'data' => $this->processRecords($paginator->items(), $activeGroup),
                 'pagination' => [
                     'total' => $paginator->total(),
                     'per_page' => $paginator->perPage(),
@@ -821,21 +1047,49 @@ class Table implements InertiaSerializable
                     'from' => $paginator->firstItem(),
                     'to' => $paginator->lastItem(),
                 ],
+                'activeGroup' => $activeGroup?->getColumn(),
             ];
         }
 
         return [
-            'data' => $this->processRecords($query->get()->all()),
+            'data' => $this->processRecords($query->get()->all(), $activeGroup),
             'pagination' => null,
+            'activeGroup' => $activeGroup?->getColumn(),
         ];
+    }
+
+    /**
+     * Get a value from an array using dot notation.
+     */
+    protected function getValueByDotNotation(array $array, string $key): mixed
+    {
+        if (array_key_exists($key, $array)) {
+            return $array[$key];
+        }
+
+        if (! str_contains($key, '.')) {
+            return null;
+        }
+
+        $segments = explode('.', $key);
+        $value = $array;
+
+        foreach ($segments as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return null;
+            }
+            $value = $value[$segment];
+        }
+
+        return $value;
     }
 
     /**
      * Process records to add column metadata (icons, colors, sizes, descriptions) and record actions
      */
-    protected function processRecords(array $records): array
+    protected function processRecords(array $records, ?Grouping\Group $activeGroup = null): array
     {
-        return array_map(function ($record) {
+        return array_map(function ($record) use ($activeGroup) {
             $recordArray = is_array($record) ? $record : $record->toArray();
 
             // Add metadata arrays
@@ -846,7 +1100,14 @@ class Table implements InertiaSerializable
 
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
-                $value = $recordArray[$columnName] ?? null;
+
+                // Support dot notation for nested relation data (e.g., 'customer.full_name')
+                $value = $this->getValueByDotNotation($recordArray, $columnName);
+
+                // If using dot notation, flatten the value into the record array for frontend access
+                if (str_contains($columnName, '.') && $value !== null) {
+                    $recordArray[$columnName] = $value;
+                }
 
                 // Evaluate icon
                 $icon = $column->evaluateIcon($value, $record);
@@ -908,6 +1169,18 @@ class Table implements InertiaSerializable
                 return method_exists($actionClone, 'toArray') ? $actionClone->toArray() : (method_exists($actionClone, 'toInertiaProps') ? $actionClone->toInertiaProps() : $actionClone);
             }, $this->recordActions);
 
+            // Add group metadata if grouping is active
+            if ($activeGroup) {
+                $groupColumn = $activeGroup->getColumn();
+                $groupValue = $recordArray[$groupColumn] ?? null;
+                $recordArray['_group'] = [
+                    'column' => $groupColumn,
+                    'value' => $groupValue,
+                    'title' => $activeGroup->getTitleForRecord($record, $groupValue),
+                    'description' => $activeGroup->getDescriptionForRecord($record, $groupValue),
+                ];
+            }
+
             return $recordArray;
         }, $records);
     }
@@ -966,8 +1239,16 @@ class Table implements InertiaSerializable
             'infiniteScroll' => $this->infiniteScroll,
             'striped' => $this->striped,
             'hoverable' => $this->hoverable,
+            'filtersLayout' => $this->filtersLayout,
             'reorderable' => $this->reorderableColumn !== null,
             'reorderableColumn' => $this->reorderableColumn,
+            'reorderRoute' => $this->reorderRoute ?? ($this->resourceSlug ? route($this->getReorderRouteName()) : null),
+            'groups' => array_map(
+                fn (Grouping\Group $group) => $group->toInertiaProps(),
+                $this->groups
+            ),
+            'defaultGroup' => $this->defaultGroup,
+            'activeGroup' => $records['activeGroup'] ?? null,
             'pollInterval' => $this->pollInterval,
             'defaultSortColumn' => $this->defaultSortColumn,
             'defaultSortDirection' => $this->defaultSortDirection,

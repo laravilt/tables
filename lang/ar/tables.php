@@ -32,6 +32,8 @@ return [
         'active_filters' => 'التصفيات النشطة',
         'sort_by' => 'ترتيب حسب',
         'search' => 'بحث',
+        'group_by' => 'تجميع حسب',
+        'no_grouping' => 'بدون تجميع',
     ],
 
     // Search & Filter

@@ -37,6 +37,15 @@ abstract class Column extends Component
 
     protected ?string $size = null;
 
+    protected int|string|null $width = null;
+
+    public function width(int|string|null $width): static
+    {
+        $this->width = $width;
+
+        return $this;
+    }
+
     public function alignment(string $alignment): static
     {
         $this->alignment = $alignment;
@@ -292,6 +301,7 @@ abstract class Column extends Component
             'suffix' => $this->suffix,
             'grow' => $this->grow,
             'size' => $this->size,
+            'width' => $this->width,
             'hasFormatUsing' => $this->formatUsing !== null,
         ];
     }

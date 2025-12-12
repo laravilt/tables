@@ -147,40 +147,63 @@ const cardGap = computed(() => {
     }
 })
 
+// Helper to get nested value using dot notation (e.g., 'category.name')
+const getNestedValue = (record: any, field: string) => {
+    if (!field) return null
+
+    // First check if the flattened key exists (from backend processing)
+    if (record[field] !== undefined) {
+        return record[field]
+    }
+
+    // Otherwise, traverse nested objects
+    if (field.includes('.')) {
+        const parts = field.split('.')
+        let value = record
+        for (const part of parts) {
+            if (value === null || value === undefined) return null
+            value = value[part]
+        }
+        return value
+    }
+
+    return record[field]
+}
+
 const getImageUrl = (record: any) => {
     const imageField = props.grid.card?.imageField
     if (!imageField) return null
-    return record[imageField]
+    return getNestedValue(record, imageField)
 }
 
 const getTitle = (record: any) => {
     const titleField = props.grid.card?.titleField
     if (!titleField) return null
-    return record[titleField]
+    return getNestedValue(record, titleField)
 }
 
 const getSubtitle = (record: any) => {
     const subtitleField = props.grid.card?.subtitleField
     if (!subtitleField) return null
-    return record[subtitleField]
+    return getNestedValue(record, subtitleField)
 }
 
 const getDescription = (record: any) => {
     const descriptionField = props.grid.card?.descriptionField
     if (!descriptionField) return null
-    return record[descriptionField]
+    return getNestedValue(record, descriptionField)
 }
 
 const getPrice = (record: any) => {
     const priceField = props.grid.card?.priceField
     if (!priceField) return null
-    return record[priceField]
+    return getNestedValue(record, priceField)
 }
 
 const getBadge = (record: any) => {
     const badgeField = props.grid.card?.badgeField
     if (!badgeField) return null
-    return record[badgeField]
+    return getNestedValue(record, badgeField)
 }
 
 const getBadgeIcon = (record: any) => {
@@ -775,13 +798,9 @@ const getStatusIcon = (status: string) => {
 
                 <!-- Product Info -->
                 <div class="flex-1 p-4 flex flex-col">
-                    <!-- Category / SKU -->
-                    <div v-if="getSubtitle(record) || record.category" class="flex items-center gap-2 mb-2">
-                        <span v-if="record.category" class="text-[11px] font-medium text-primary uppercase tracking-wide">
-                            {{ record.category }}
-                        </span>
-                        <span v-if="record.category && getSubtitle(record)" class="text-muted-foreground/30">•</span>
-                        <span v-if="getSubtitle(record)" class="text-[11px] font-mono text-muted-foreground">
+                    <!-- Subtitle (e.g., Category) -->
+                    <div v-if="getSubtitle(record)" class="flex items-center gap-2 mb-2">
+                        <span class="text-[11px] font-medium text-primary uppercase tracking-wide">
                             {{ getSubtitle(record) }}
                         </span>
                     </div>

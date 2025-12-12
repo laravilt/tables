@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, SlidersHorizontal, X, Columns3, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-vue-next'
+import { Search, SlidersHorizontal, X, Columns3, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown, LayoutList, Check } from 'lucide-vue-next'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -41,6 +41,12 @@ interface FilterIndicator {
   removeField: string
 }
 
+interface GroupConfig {
+  column: string
+  label: string
+  collapsible: boolean
+}
+
 interface TableToolbarProps {
   searchable?: boolean
   searchPlaceholder?: string
@@ -55,6 +61,8 @@ interface TableToolbarProps {
   showSort?: boolean
   sortColumn?: string | null
   sortDirection?: 'asc' | 'desc'
+  groups?: GroupConfig[]
+  activeGroup?: string | null
 }
 
 const props = withDefaults(defineProps<TableToolbarProps>(), {
@@ -71,6 +79,8 @@ const props = withDefaults(defineProps<TableToolbarProps>(), {
   showSort: false,
   sortColumn: null,
   sortDirection: 'asc',
+  groups: () => [],
+  activeGroup: null,
 })
 
 const emit = defineEmits<{
@@ -80,6 +90,7 @@ const emit = defineEmits<{
   'removeFilter': [filterName: string]
   clearFilters: []
   'update:sort': [column: string, direction: 'asc' | 'desc']
+  'update:activeGroup': [group: string | null]
 }>()
 
 const localSearch = ref(props.search)
@@ -199,6 +210,19 @@ const handleSortChange = (columnName: string) => {
 
   emit('update:sort', columnName, direction)
 }
+
+// Grouping functionality
+const hasGroups = computed(() => props.groups && props.groups.length > 0)
+
+const activeGroupLabel = computed(() => {
+  if (!props.activeGroup) return trans('tables::tables.toolbar.group_by') || 'Group by'
+  const group = props.groups?.find(g => g.column === props.activeGroup)
+  return group ? group.label : trans('tables::tables.toolbar.group_by') || 'Group by'
+})
+
+const handleGroupChange = (groupColumn: string | null) => {
+  emit('update:activeGroup', groupColumn)
+}
 </script>
 
 <template>
@@ -295,6 +319,54 @@ const handleSortChange = (columnName: string) => {
               </div>
               <div class="space-y-3">
                 <slot name="filters" />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <!-- Group By Selector -->
+        <Popover v-if="hasGroups">
+          <PopoverTrigger as-child>
+            <Button
+              :variant="activeGroup ? 'default' : 'outline'"
+              size="sm"
+              class="gap-2 whitespace-nowrap"
+              :title="trans('tables::tables.toolbar.group_by') || 'Group by'"
+            >
+              <LayoutList class="h-4 w-4" />
+              {{ activeGroupLabel }}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" class="w-[220px]">
+            <div class="space-y-2">
+              <h4 class="text-sm font-semibold mb-3">{{ trans('tables::tables.toolbar.group_by') || 'Group by' }}</h4>
+              <div class="space-y-1">
+                <!-- No Grouping Option -->
+                <button
+                  @click="handleGroupChange(null)"
+                  class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors"
+                  :class="!activeGroup
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'hover:bg-muted'
+                  "
+                >
+                  <span>{{ trans('tables::tables.toolbar.no_grouping') || 'No grouping' }}</span>
+                  <Check v-if="!activeGroup" class="h-4 w-4" />
+                </button>
+                <!-- Group Options -->
+                <button
+                  v-for="group in groups"
+                  :key="group.column"
+                  @click="handleGroupChange(group.column)"
+                  class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors"
+                  :class="activeGroup === group.column
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'hover:bg-muted'
+                  "
+                >
+                  <span>{{ group.label }}</span>
+                  <Check v-if="activeGroup === group.column" class="h-4 w-4" />
+                </button>
               </div>
             </div>
           </PopoverContent>

@@ -23,11 +23,14 @@ class ApiAction implements InertiaSerializable
 
     protected string $method = 'POST';
 
-    protected ?Closure $action = null;
+    /** @var Closure|null */
+    protected mixed $action = null;
 
-    protected ?Closure $beforeAction = null;
+    /** @var Closure|null */
+    protected mixed $beforeAction = null;
 
-    protected ?Closure $afterAction = null;
+    /** @var Closure|null */
+    protected mixed $afterAction = null;
 
     protected bool $requiresRecord = true;
 
@@ -449,18 +452,18 @@ class ApiAction implements InertiaSerializable
     public function execute(mixed $record, \Illuminate\Http\Request $request): mixed
     {
         // Run before hook
-        if ($this->beforeAction instanceof Closure) {
+        if ($this->beforeAction !== null && is_callable($this->beforeAction)) {
             ($this->beforeAction)($record, $request);
         }
 
         // Run main action
         $result = null;
-        if ($this->action instanceof Closure) {
+        if ($this->action !== null && is_callable($this->action)) {
             $result = ($this->action)($record, $request);
         }
 
         // Run after hook
-        if ($this->afterAction instanceof Closure) {
+        if ($this->afterAction !== null && is_callable($this->afterAction)) {
             ($this->afterAction)($record, $request, $result);
         }
 
