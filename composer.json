@@ -1,7 +1,7 @@
 {
     "name": "laravilt/tables",
     "description": "Complete table system with columns, filters, sorting, bulk actions, and pagination. Build powerful data tables with search, filters, inline editing, row/bulk actions, and responsive mobile-friendly layouts.",
-    "version": "1.1.0",
+    "version": "1.0.1",
     "type": "library",
     "license": "MIT",
     "keywords": [
