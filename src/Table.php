@@ -118,6 +118,17 @@ class Table implements InertiaSerializable
     protected ?string $apiEndpoint = null;
 
     /**
+     * Closure to generate clickable record URL.
+     * Receives the record as parameter and should return a URL string.
+     */
+    protected ?Closure $recordUrl = null;
+
+    /**
+     * Whether to use the first action's URL as the default record URL.
+     */
+    protected bool $recordUrlFromFirstAction = true;
+
+    /**
      * Generic options for custom configuration.
      *
      * @var array<string, mixed>
@@ -690,6 +701,87 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * Set a custom URL generator for clickable table rows.
+     * The closure receives the record as parameter.
+     *
+     * @param  Closure|string|null  $url  A closure that receives the record and returns a URL, or a static URL
+     */
+    public function recordUrl(Closure|string|null $url): static
+    {
+        if (is_string($url)) {
+            $this->recordUrl = fn ($record) => $url;
+        } else {
+            $this->recordUrl = $url;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Disable using the first action's URL as default record URL.
+     */
+    public function disableRecordUrlFromFirstAction(): static
+    {
+        $this->recordUrlFromFirstAction = false;
+
+        return $this;
+    }
+
+    /**
+     * Get the record URL closure.
+     */
+    public function getRecordUrl(): ?Closure
+    {
+        return $this->recordUrl;
+    }
+
+    /**
+     * Evaluate record URL for a specific record.
+     *
+     * @param  mixed  $record  The record instance or array
+     * @return string|null The URL for the record
+     */
+    public function evaluateRecordUrl(mixed $record): ?string
+    {
+        // If custom recordUrl is set, use it
+        if ($this->recordUrl !== null) {
+            return call_user_func($this->recordUrl, $record);
+        }
+
+        // If disabled, return null
+        if (! $this->recordUrlFromFirstAction) {
+            return null;
+        }
+
+        // Default: try to get URL from first action
+        if (! empty($this->recordActions)) {
+            $firstAction = $this->recordActions[0] ?? null;
+
+            if ($firstAction !== null) {
+                // Get the action's URL after resolving record context
+                $actionClone = clone $firstAction;
+
+                if (method_exists($actionClone, 'resolveRecordContext')) {
+                    $recordId = is_object($record) && method_exists($record, 'getKey')
+                        ? $record->getKey()
+                        : ($record['id'] ?? null);
+
+                    if ($recordId) {
+                        $actionClone->resolveRecordContext($recordId);
+                    }
+                }
+
+                // Get the URL from the action
+                if (method_exists($actionClone, 'getUrl')) {
+                    return $actionClone->getUrl();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Set a custom option.
      */
     public function setOption(string $key, mixed $value): static
@@ -1179,6 +1271,12 @@ class Table implements InertiaSerializable
                     'title' => $activeGroup->getTitleForRecord($record, $groupValue),
                     'description' => $activeGroup->getDescriptionForRecord($record, $groupValue),
                 ];
+            }
+
+            // Evaluate and add record URL for clickable rows
+            $recordUrl = $this->evaluateRecordUrl($record);
+            if ($recordUrl !== null) {
+                $recordArray['_url'] = $recordUrl;
             }
 
             return $recordArray;

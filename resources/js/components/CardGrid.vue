@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { router } from '@inertiajs/vue3'
 import { Inbox, Clock, User, FileText, Calendar, Eye, Pencil, Package, Star } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -374,6 +375,28 @@ const getStatusIcon = (status: string) => {
     }
     return iconMap[status] || LucideIcons.Circle
 }
+
+// Handle card click to navigate to record URL
+const handleCardClick = (event: MouseEvent, record: any) => {
+    // Don't navigate if there's no URL
+    if (!record._url) return
+
+    // Don't navigate if clicking on interactive elements
+    const target = event.target as HTMLElement
+    const interactiveElements = ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL']
+
+    // Check if click is on or inside an interactive element
+    let element: HTMLElement | null = target
+    while (element) {
+        if (interactiveElements.includes(element.tagName)) return
+        if (element.hasAttribute('data-no-card-click')) return
+        if (element.classList.contains('record-actions')) return
+        element = element.parentElement
+    }
+
+    // Navigate using Inertia
+    router.visit(record._url)
+}
 </script>
 
 <template>
@@ -527,8 +550,10 @@ const getStatusIcon = (status: string) => {
                 class="group relative overflow-hidden transition-all duration-300 flex flex-col bg-card border rounded-lg"
                 :class="{
                     'hover:border-primary/40': grid.card?.hoverable !== false,
-                    'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50': isSelected(record.id)
+                    'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50': isSelected(record.id),
+                    'cursor-pointer': record._url
                 }"
+                @click="(e) => handleCardClick(e, record)"
             >
                 <!-- Main Card Content -->
                 <div class="p-5 flex-1">
@@ -632,7 +657,8 @@ const getStatusIcon = (status: string) => {
                 <!-- Actions Footer (CENTERED) -->
                 <div
                     v-if="record._actions && record._actions.length > 0"
-                    class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3"
+                    class="border-t bg-muted/40 px-5 py-3 flex items-center justify-center gap-3 record-actions"
+                    data-no-card-click
                 >
                     <RecordActions
                         :actions="record._actions"
@@ -656,8 +682,10 @@ const getStatusIcon = (status: string) => {
                 class="group relative overflow-hidden rounded-xl transition-all duration-300 flex flex-col"
                 :class="{
                     'hover:scale-[1.02]': grid.card?.hoverable !== false,
-                    'ring-2 ring-primary ring-offset-2 ring-offset-background': isSelected(record.id)
+                    'ring-2 ring-primary ring-offset-2 ring-offset-background': isSelected(record.id),
+                    'cursor-pointer': record._url
                 }"
+                @click="(e) => handleCardClick(e, record)"
             >
                 <!-- Background Image -->
                 <div class="relative aspect-[16/10] overflow-hidden bg-muted">
@@ -712,7 +740,8 @@ const getStatusIcon = (status: string) => {
                 <!-- Actions Bar -->
                 <div
                     v-if="record._actions && record._actions.length > 0"
-                    class="flex items-center justify-center gap-2 bg-card border border-t-0 rounded-b-xl p-3"
+                    class="flex items-center justify-center gap-2 bg-card border border-t-0 rounded-b-xl p-3 record-actions"
+                    data-no-card-click
                 >
                     <RecordActions
                         :actions="record._actions"
@@ -736,8 +765,10 @@ const getStatusIcon = (status: string) => {
                 class="group relative overflow-hidden transition-all duration-300 flex flex-col bg-card border rounded-xl shadow-sm"
                 :class="{
                     'hover:shadow-lg hover:border-primary/30 hover:-translate-y-1': grid.card?.hoverable !== false,
-                    'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50': isSelected(record.id)
+                    'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50': isSelected(record.id),
+                    'cursor-pointer': record._url
                 }"
+                @click="(e) => handleCardClick(e, record)"
             >
                 <!-- Selection Checkbox (floating) -->
                 <div v-if="bulkActionsAvailable" class="absolute top-3 left-3 z-20">
@@ -866,7 +897,8 @@ const getStatusIcon = (status: string) => {
                 <!-- Actions Footer -->
                 <div
                     v-if="record._actions && record._actions.length > 0 && grid.card?.actionsPosition === 'bottom'"
-                    class="border-t bg-muted/30 px-4 py-3 flex items-center justify-center gap-2"
+                    class="border-t bg-muted/30 px-4 py-3 flex items-center justify-center gap-2 record-actions"
+                    data-no-card-click
                 >
                     <RecordActions
                         :actions="record._actions"
@@ -890,8 +922,10 @@ const getStatusIcon = (status: string) => {
                 class="group relative overflow-hidden transition-all duration-200 flex flex-col"
                 :class="{
                     'hover:border-primary/30': grid.card?.hoverable !== false,
-                    'ring-2 ring-primary ring-offset-2 ring-offset-background': isSelected(record.id)
+                    'ring-2 ring-primary ring-offset-2 ring-offset-background': isSelected(record.id),
+                    'cursor-pointer': record._url
                 }"
+                @click="(e) => handleCardClick(e, record)"
             >
                 <!-- Card Header with Checkbox -->
                 <CardHeader v-if="bulkActionsAvailable || getTitle(record)" class="flex-row items-start gap-3 space-y-0 pb-3">
@@ -931,7 +965,8 @@ const getStatusIcon = (status: string) => {
                 <!-- Actions Footer -->
                 <CardFooter
                     v-if="record._actions && record._actions.length > 0"
-                    class="flex items-center justify-center gap-2 border-t pt-4"
+                    class="flex items-center justify-center gap-2 border-t pt-4 record-actions"
+                    data-no-card-click
                 >
                     <RecordActions
                         :actions="record._actions"

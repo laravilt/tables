@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, Link } from '@inertiajs/vue3'
 import TextColumn from './columns/TextColumn.vue'
 import IconColumn from './columns/IconColumn.vue'
 import ImageColumn from './columns/ImageColumn.vue'
@@ -26,6 +26,7 @@ interface Column {
 
 interface Record {
   id: number | string
+  _url?: string
   [key: string]: any
 }
 
@@ -393,6 +394,33 @@ const getColumnComponent = (columnType: string) => {
   }
 }
 
+// Handle row click to navigate to record URL
+const handleRowClick = (event: MouseEvent, record: Record) => {
+  // Don't navigate if there's no URL
+  if (!record._url) return
+
+  // Don't navigate if clicking on interactive elements
+  const target = event.target as HTMLElement
+  const interactiveElements = ['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL']
+
+  // Check if click is on or inside an interactive element
+  let element: HTMLElement | null = target
+  while (element) {
+    if (interactiveElements.includes(element.tagName)) return
+    if (element.hasAttribute('data-no-row-click')) return
+    if (element.classList.contains('record-actions')) return
+    element = element.parentElement
+  }
+
+  // Navigate using Inertia
+  router.visit(record._url)
+}
+
+// Check if any record has a URL (for cursor styling)
+const hasRecordUrls = computed(() => {
+  return displayRecords.value.some((record) => record._url)
+})
+
 // Get column width class based on column type and name
 const getColumnWidthClass = (column: Column, index: number): string => {
   // Check for explicit width from column config
@@ -637,7 +665,9 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                   :class="[
                     striped ? (index % 2 === 0 ? 'bg-card hover:bg-accent' : 'bg-muted/30 hover:bg-accent') : 'bg-card hover:bg-accent',
                     selectedRecords.has(record.id) && 'bg-primary/10 hover:bg-primary/15 ring-1 ring-inset ring-primary/30',
+                    record._url && 'cursor-pointer',
                   ]"
+                  @click="(e) => handleRowClick(e, record)"
                 >
                   <!-- Checkbox Column (if bulk actions available) -->
                   <div
@@ -692,7 +722,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                     </div>
 
                     <!-- Inline Actions (when not fixed) -->
-                    <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-3 py-3.5 flex items-center justify-end min-w-[160px] ml-auto shrink-0">
+                    <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-3 py-3.5 flex items-center justify-end min-w-[160px] ml-auto shrink-0 record-actions" data-no-row-click>
                       <slot name="actions" :record="record">
                         <RecordActions
                           :actions="record._actions"
@@ -710,12 +740,13 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                   <!-- Fixed Actions Cell -->
                   <div
                     v-if="fixedActions && record._actions && record._actions.length > 0"
-                    class="sticky end-0 z-20 border-s border-border transition-all duration-150 flex items-center justify-center gap-1.5 px-3 self-stretch shrink-0"
+                    class="sticky end-0 z-20 border-s border-border transition-all duration-150 flex items-center justify-center gap-1.5 px-3 self-stretch shrink-0 record-actions"
                     :class="[
                       striped ? (index % 2 === 0 ? 'bg-card group-hover:bg-accent' : 'bg-muted/30 group-hover:bg-accent') : 'bg-card group-hover:bg-accent',
                       selectedRecords.has(record.id) && 'bg-primary/10 group-hover:bg-primary/15',
                     ]"
                     :style="{ width: actionsColumnWidth, minWidth: actionsColumnWidth }"
+                    data-no-row-click
                   >
                     <slot name="actions" :record="record">
                       <RecordActions
@@ -754,6 +785,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 selectedRecords.has(record.id) && 'bg-primary/10 hover:bg-primary/15 ring-1 ring-inset ring-primary/30',
                 draggedIndex === index && 'opacity-50',
                 dragOverIndex === index && draggedIndex !== index && 'border-t-2 border-primary',
+                record._url && 'cursor-pointer',
               ]"
               :draggable="reorderable"
               @dragstart="(e) => handleDragStart(e, index)"
@@ -761,6 +793,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
               @dragleave="handleDragLeave"
               @drop="(e) => handleDrop(e, index)"
               @dragend="handleDragEnd"
+              @click="(e) => handleRowClick(e, record)"
             >
               <!-- Drag Handle (if reorderable) -->
               <div
@@ -823,7 +856,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 </div>
 
                 <!-- Inline Actions (when not fixed) -->
-                <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-3 py-3.5 flex items-center justify-end min-w-[160px] ml-auto shrink-0">
+                <div v-if="!fixedActions && record._actions && record._actions.length > 0" class="px-3 py-3.5 flex items-center justify-end min-w-[160px] ml-auto shrink-0 record-actions" data-no-row-click>
                   <slot name="actions" :record="record">
                     <RecordActions
                       :actions="record._actions"
@@ -841,12 +874,13 @@ const getColumnWidthClass = (column: Column, index: number): string => {
               <!-- Fixed Actions Cell -->
               <div
                 v-if="fixedActions && record._actions && record._actions.length > 0"
-                class="sticky end-0 z-20 border-s border-border transition-all duration-150 flex items-center justify-center gap-1.5 px-3 self-stretch shrink-0"
+                class="sticky end-0 z-20 border-s border-border transition-all duration-150 flex items-center justify-center gap-1.5 px-3 self-stretch shrink-0 record-actions"
                 :class="[
                   striped ? (index % 2 === 0 ? 'bg-card group-hover:bg-accent' : 'bg-muted group-hover:bg-accent') : 'bg-card group-hover:bg-accent',
                   selectedRecords.has(record.id) && 'bg-primary/10 group-hover:bg-primary/15',
                 ]"
                 :style="{ width: actionsColumnWidth, minWidth: actionsColumnWidth }"
+                data-no-row-click
               >
                 <slot name="actions" :record="record">
                   <RecordActions
