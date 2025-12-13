@@ -1184,6 +1184,11 @@ class Table implements InertiaSerializable
         return array_map(function ($record) use ($activeGroup) {
             $recordArray = is_array($record) ? $record : $record->toArray();
 
+            // Ensure deleted_at is included for soft-deletable models (needed for action visibility)
+            if (is_object($record) && method_exists($record, 'trashed')) {
+                $recordArray['deleted_at'] = $record->deleted_at;
+            }
+
             // Add metadata arrays
             $recordArray['_icons'] = [];
             $recordArray['_colors'] = [];
