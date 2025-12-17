@@ -236,9 +236,9 @@ const handleGroupChange = (groupColumn: string | null) => {
     </div>
 
     <!-- Top Row: Search, Filters, Column Toggle -->
-    <div class="flex items-center gap-2 flex-nowrap px-4 py-3 border-b border-border">
+    <div class="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:gap-2">
       <!-- Search -->
-      <div v-if="searchable" class="relative w-full max-w-sm shrink-0">
+      <div v-if="searchable" class="relative w-full sm:max-w-sm sm:shrink-0">
         <Search class="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           v-model="localSearch"
@@ -257,7 +257,7 @@ const handleGroupChange = (groupColumn: string | null) => {
         </button>
       </div>
 
-      <div class="flex items-center gap-2 ms-auto shrink-0">
+      <div class="flex items-center gap-2 flex-wrap sm:ms-auto sm:shrink-0 sm:flex-nowrap">
         <!-- Sort Button (for grid view) -->
         <Popover v-if="showSort && sortableColumns.length > 0">
           <PopoverTrigger as-child>
