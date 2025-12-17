@@ -14,12 +14,61 @@ Complete table system with columns, filters, sorting, bulk actions, and paginati
 
 ## Features
 
-- 📊 **Column Types** - Text, Image, Badge, Icon, Select, Toggle
-- 🔍 **Search & Filter** - Full-text search and advanced filters
-- ↕️ **Sorting** - Multi-column sorting support
+- 📊 **9 Column Types** - Text, Image, Badge, Icon, Select, Toggle, Color, Relationship, Custom
+- 🔍 **5 Filter Types** - Text, Select, Multi-Select, Boolean, Date Range
+- ↕️ **Sorting** - Multi-column sorting with direction control
 - ✅ **Bulk Actions** - Select and perform actions on multiple rows
-- 📄 **Pagination** - Built-in pagination
-- 📱 **Responsive** - Mobile-friendly
+- 📄 **Pagination** - Built-in pagination with customizable page sizes
+- 📱 **Responsive** - Mobile-friendly with column visibility control
+
+## Column Types
+
+| Column | Description |
+|--------|-------------|
+| `TextColumn` | Text display with formatting options |
+| `ImageColumn` | Image thumbnails with lightbox |
+| `BadgeColumn` | Status badges with colors |
+| `IconColumn` | Boolean icons (check/x) |
+| `SelectColumn` | Inline select editing |
+| `ToggleColumn` | Inline toggle switches |
+| `ColorColumn` | Color swatches |
+| `RelationshipColumn` | Display related model data |
+| `CustomColumn` | Custom Vue component rendering |
+
+## Quick Example
+
+```php
+use Laravilt\Tables\Table;
+use Laravilt\Tables\Columns\TextColumn;
+use Laravilt\Tables\Columns\BadgeColumn;
+use Laravilt\Tables\Columns\ToggleColumn;
+use Laravilt\Tables\Filters\SelectFilter;
+use Laravilt\Tables\Actions\BulkAction;
+
+Table::make()
+    ->columns([
+        TextColumn::make('name')
+            ->searchable()
+            ->sortable(),
+
+        BadgeColumn::make('status')
+            ->colors([
+                'success' => 'active',
+                'danger' => 'inactive',
+            ]),
+
+        ToggleColumn::make('is_featured'),
+    ])
+    ->filters([
+        SelectFilter::make('status')
+            ->options(['active', 'inactive']),
+    ])
+    ->toolbarActions([
+        BulkAction::make('delete')
+            ->label('Delete Selected')
+            ->action(fn ($records) => $records->each->delete()),
+    ]);
+```
 
 ## Installation
 
