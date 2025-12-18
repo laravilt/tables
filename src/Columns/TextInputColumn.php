@@ -14,17 +14,17 @@ class TextInputColumn extends Column
 
     protected string $type = 'text';
 
-    protected string|Closure|null $prefix = null;
+    protected string|Closure|null $inputPrefix = null;
 
-    protected string|Closure|null $suffix = null;
+    protected string|Closure|null $inputSuffix = null;
 
-    protected string|Closure|null $prefixIcon = null;
+    protected string|Closure|null $inputPrefixIcon = null;
 
-    protected string|Closure|null $suffixIcon = null;
+    protected string|Closure|null $inputSuffixIcon = null;
 
-    protected string|Closure|null $suffixIconColor = null;
+    protected string|Closure|null $inputSuffixIconColor = null;
 
-    protected string|Closure|null $prefixIconColor = null;
+    protected string|Closure|null $inputPrefixIconColor = null;
 
     public function beforeStateUpdated(Closure $callback): static
     {
@@ -54,44 +54,44 @@ class TextInputColumn extends Column
         return $this;
     }
 
-    public function prefix(string|Closure $prefix): static
+    public function inputPrefix(string|Closure $prefix): static
     {
-        $this->prefix = $prefix;
+        $this->inputPrefix = $prefix;
 
         return $this;
     }
 
-    public function suffix(string|Closure $suffix): static
+    public function inputSuffix(string|Closure $suffix): static
     {
-        $this->suffix = $suffix;
+        $this->inputSuffix = $suffix;
 
         return $this;
     }
 
-    public function prefixIcon(string|Closure $icon): static
+    public function inputPrefixIcon(string|Closure $icon): static
     {
-        $this->prefixIcon = $icon;
+        $this->inputPrefixIcon = $icon;
 
         return $this;
     }
 
-    public function suffixIcon(string|Closure $icon): static
+    public function inputSuffixIcon(string|Closure $icon): static
     {
-        $this->suffixIcon = $icon;
+        $this->inputSuffixIcon = $icon;
 
         return $this;
     }
 
-    public function prefixIconColor(string|Closure $color): static
+    public function inputPrefixIconColor(string|Closure $color): static
     {
-        $this->prefixIconColor = $color;
+        $this->inputPrefixIconColor = $color;
 
         return $this;
     }
 
-    public function suffixIconColor(string|Closure $color): static
+    public function inputSuffixIconColor(string|Closure $color): static
     {
-        $this->suffixIconColor = $color;
+        $this->inputSuffixIconColor = $color;
 
         return $this;
     }
@@ -117,12 +117,12 @@ class TextInputColumn extends Column
             ...parent::getVueProps(),
             'rules' => $this->rules,
             'type' => $this->type,
-            'prefix' => $this->prefix,
-            'suffix' => $this->suffix,
-            'prefixIcon' => $this->prefixIcon,
-            'suffixIcon' => $this->suffixIcon,
-            'prefixIconColor' => $this->prefixIconColor,
-            'suffixIconColor' => $this->suffixIconColor,
+            'prefix' => $this->inputPrefix,
+            'suffix' => $this->inputSuffix,
+            'prefixIcon' => $this->inputPrefixIcon,
+            'suffixIcon' => $this->inputSuffixIcon,
+            'prefixIconColor' => $this->inputPrefixIconColor,
+            'suffixIconColor' => $this->inputSuffixIconColor,
             'editable' => true,
         ];
     }

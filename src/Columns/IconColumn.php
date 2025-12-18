@@ -12,6 +12,16 @@ class IconColumn extends Column
 
     protected string|Closure|null $iconSize = 'large';
 
+    /**
+     * Override size to support Closure and set iconSize.
+     */
+    public function size(string|Closure|null $size): static
+    {
+        $this->iconSize = $size;
+
+        return $this;
+    }
+
     protected bool $boolean = false;
 
     protected string|Closure|null $trueIcon = null;
@@ -167,6 +177,14 @@ class IconColumn extends Column
     public function evaluateIconSize(mixed $state, mixed $record = null): ?string
     {
         return $this->evaluate($this->iconSize, ['state' => $state, 'record' => $record]);
+    }
+
+    /**
+     * Override evaluateSize to use iconSize.
+     */
+    public function evaluateSize(mixed $state, mixed $record = null): ?string
+    {
+        return $this->evaluateIconSize($state, $record);
     }
 
     protected function evaluate(mixed $value, array $parameters = []): mixed

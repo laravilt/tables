@@ -84,7 +84,7 @@ it('can disable pagination', function () {
 it('has default per page value', function () {
     $props = $this->table->toInertiaProps();
 
-    expect($props['perPage'])->toBe(5);
+    expect($props['perPage'])->toBe(12);
 });
 
 it('can set custom per page value', function () {
