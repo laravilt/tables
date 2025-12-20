@@ -358,8 +358,6 @@ class Table implements InertiaSerializable
 
     /**
      * Set the pagination mode.
-     *
-     * @param  Enums\PaginationMode|string  $mode
      */
     public function paginationMode(Enums\PaginationMode|string $mode): static
     {
