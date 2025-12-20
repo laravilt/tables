@@ -874,6 +874,16 @@ onUnmounted(() => {
                 @update:sort="handleSort"
                 @update:active-group="handleGroupChange"
             >
+                <template #toolbar-actions>
+                    <ActionButton
+                        v-for="action in (table.headerActions || [])"
+                        :key="action.name"
+                        v-bind="action"
+                        size="sm"
+                        :is-outlined="true"
+                        @action-complete="handleActionComplete"
+                    />
+                </template>
                 <template #filters>
                     <div
                         v-for="filter in table.filters"

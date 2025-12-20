@@ -133,6 +133,27 @@ class SelectFilter extends Filter
             return ($this->query)($query, $value);
         }
 
+        // If this is a relationship filter, use whereHas
+        if ($this->relationship) {
+            if ($this->multiple) {
+                // For multiple selection with relationship
+                if (is_array($value) && count($value) > 0) {
+                    return $query->whereHas($this->relationship, function ($q) use ($value) {
+                        $q->whereIn('id', $value);
+                    });
+                }
+            } else {
+                // For single selection with relationship
+                if ($value !== null && $value !== '') {
+                    return $query->whereHas($this->relationship, function ($q) use ($value) {
+                        $q->where('id', $value);
+                    });
+                }
+            }
+
+            return $query;
+        }
+
         // Default behavior: filter by attribute
         $attribute = $this->getAttribute() ?? $this->getName();
 
@@ -156,12 +177,68 @@ class SelectFilter extends Filter
         return 'SelectFilter';
     }
 
+    /**
+     * Load options from the configured relationship.
+     */
+    protected function loadRelationshipOptions(): array
+    {
+        if (! $this->relationship || ! $this->relationshipTitleAttribute) {
+            return $this->options;
+        }
+
+        // Get the model from the table
+        $model = $this->getModel();
+        if (! $model) {
+            return $this->options;
+        }
+
+        try {
+            // Create a new model instance to access the relationship
+            $modelInstance = new $model;
+
+            if (! method_exists($modelInstance, $this->relationship)) {
+                return $this->options;
+            }
+
+            // Get the related model
+            $relation = $modelInstance->{$this->relationship}();
+            $query = $relation->getRelated()->query();
+
+            // Apply custom query modifications
+            if ($this->relationshipModifyQueryUsing) {
+                $query = call_user_func($this->relationshipModifyQueryUsing, $query);
+            }
+
+            // Get the options
+            $titleAttribute = $this->relationshipTitleAttribute;
+            $keyName = $relation->getRelated()->getKeyName();
+
+            $options = $query->pluck($titleAttribute, $keyName)->toArray();
+
+            // Add empty option if enabled
+            if ($this->hasEmptyOption) {
+                $options = ['' => $this->emptyRelationshipOptionLabel] + $options;
+            }
+
+            return $options;
+        } catch (\Exception $e) {
+            // If relationship loading fails, return empty options
+            return $this->options;
+        }
+    }
+
     protected function getVueProps(): array
     {
+        // Load options from relationship if configured and preload is enabled
+        $options = $this->options;
+        if ($this->relationship && $this->preload) {
+            $options = $this->loadRelationshipOptions();
+        }
+
         // Build the Select form component
         $select = Select::make($this->getName())
             ->label($this->getLabel() ?? $this->getName())
-            ->options($this->options)
+            ->options($options)
             ->placeholder($this->getPlaceholder() ?? ($this->selectablePlaceholder ? 'All' : null));
 
         if ($this->multiple) {
@@ -172,12 +249,20 @@ class SelectFilter extends Filter
             $select->searchable();
         }
 
+        // If relationship is configured but not preloaded, pass relationship info for dynamic loading
+        if ($this->relationship && ! $this->preload) {
+            $select->relationship($this->relationship, $this->relationshipTitleAttribute);
+        }
+
         return [
             'default' => $this->default,
-            'options' => $this->options,
+            'options' => $options,
             'multiple' => $this->multiple,
             'searchable' => $this->searchable,
             'formField' => $select->toLaraviltProps(),
+            'relationship' => $this->relationship,
+            'relationshipTitleAttribute' => $this->relationshipTitleAttribute,
+            'preload' => $this->preload,
         ];
     }
 

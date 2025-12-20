@@ -6,7 +6,7 @@ use Closure;
 use Laravilt\Forms\Components\Field;
 use Laravilt\Support\Component;
 
-abstract class Filter extends Component
+class Filter extends Component
 {
     protected ?Closure $query = null;
 
@@ -14,9 +14,33 @@ abstract class Filter extends Component
 
     protected ?Field $formField = null;
 
+    /** @var array<int, Field>|null */
+    protected ?array $formFields = null;
+
     protected ?string $attribute = null;
 
     protected ?Closure $indicateUsing = null;
+
+    protected ?string $model = null;
+
+    /**
+     * Set the model class for this filter.
+     * This is used for relationship filters to load options.
+     */
+    public function model(string $model): static
+    {
+        $this->model = $model;
+
+        return $this;
+    }
+
+    /**
+     * Get the model class for this filter.
+     */
+    public function getModel(): ?string
+    {
+        return $this->model;
+    }
 
     public function query(?Closure $callback): static
     {
@@ -99,11 +123,45 @@ abstract class Filter extends Component
     }
 
     /**
+     * Set form schema for this filter (Filament compatibility).
+     * Accepts an array of form components or a closure that returns the array.
+     *
+     * @param  array<int, Field>|Closure  $schema
+     */
+    public function form(array|Closure $schema): static
+    {
+        // If it's a closure, resolve it
+        if ($schema instanceof Closure) {
+            $schema = $schema();
+        }
+
+        // If single field passed as array, use first element
+        if (is_array($schema) && count($schema) > 0) {
+            // Store all form fields
+            $this->formField = $schema[0] ?? null;
+            // Store additional fields for multi-field filters
+            $this->formFields = $schema;
+        }
+
+        return $this;
+    }
+
+    /**
      * Get the schema field for this filter.
      */
     public function getSchema(): ?Field
     {
         return $this->formField;
+    }
+
+    /**
+     * Get all form fields for this filter.
+     *
+     * @return array<int, Field>
+     */
+    public function getFormFields(): array
+    {
+        return $this->formFields ?? ($this->formField ? [$this->formField] : []);
     }
 
     /**
@@ -126,8 +184,17 @@ abstract class Filter extends Component
             'default' => $this->default,
         ];
 
-        // If a custom form field is set, include its schema
-        if ($this->formField) {
+        // If multiple form fields are set, include all of them
+        if ($this->formFields && count($this->formFields) > 0) {
+            $props['formFields'] = array_map(
+                fn (Field $field) => $field->toLaraviltProps(),
+                $this->formFields
+            );
+            // Also include the first field for backwards compatibility
+            $props['formField'] = $this->formFields[0]->toLaraviltProps();
+        }
+        // If a single custom form field is set, include its schema
+        elseif ($this->formField) {
             $props['formField'] = $this->formField->toLaraviltProps();
         }
 

@@ -11,7 +11,16 @@ abstract class Column extends Component
 
     protected bool $searchable = false;
 
+    protected bool $isSearchableIndividually = false;
+
+    protected bool $isSearchableGlobally = true;
+
+    /** @var array<int, string>|null */
+    protected ?array $searchableColumns = null;
+
     protected ?Closure $formatUsing = null;
+
+    protected ?Closure $getStateUsing = null;
 
     protected bool $toggleable = true;
 
@@ -148,11 +157,52 @@ abstract class Column extends Component
         return $this;
     }
 
-    public function searchable(bool $condition = true): static
+    /**
+     * Set whether the column is searchable.
+     *
+     * @param  bool|array<int, string>  $condition  True to enable, false to disable, or an array of column names to search
+     * @param  bool  $isIndividual  Whether to allow individual column search (per-column filter)
+     * @param  bool  $isGlobal  Whether to include in global search
+     */
+    public function searchable(bool|array $condition = true, bool $isIndividual = false, bool $isGlobal = true): static
     {
-        $this->searchable = $condition;
+        if (is_array($condition)) {
+            $this->searchable = true;
+            $this->searchableColumns = $condition;
+        } else {
+            $this->searchable = $condition;
+        }
+
+        $this->isSearchableIndividually = $isIndividual;
+        $this->isSearchableGlobally = $isGlobal;
 
         return $this;
+    }
+
+    /**
+     * Check if this column has individual search enabled.
+     */
+    public function isSearchableIndividually(): bool
+    {
+        return $this->isSearchableIndividually;
+    }
+
+    /**
+     * Check if this column is included in global search.
+     */
+    public function isSearchableGlobally(): bool
+    {
+        return $this->isSearchableGlobally;
+    }
+
+    /**
+     * Get the columns to search when searching this column.
+     *
+     * @return array<int, string>|null
+     */
+    public function getSearchableColumns(): ?array
+    {
+        return $this->searchableColumns;
     }
 
     public function formatUsing(?Closure $callback): static
@@ -168,6 +218,45 @@ abstract class Column extends Component
     public function formatStateUsing(?Closure $callback): static
     {
         return $this->formatUsing($callback);
+    }
+
+    /**
+     * Set a custom callback to retrieve the state/value for this column.
+     * This is called before formatUsing to get the raw value.
+     */
+    public function getStateUsing(?Closure $callback): static
+    {
+        $this->getStateUsing = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Get the getStateUsing callback
+     */
+    public function getGetStateUsing(): ?Closure
+    {
+        return $this->getStateUsing;
+    }
+
+    /**
+     * Evaluate the getStateUsing callback to get the raw state value
+     */
+    public function evaluateGetStateUsing(mixed $record): mixed
+    {
+        if ($this->getStateUsing) {
+            return ($this->getStateUsing)($record);
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if the column has a custom state getter
+     */
+    public function hasGetStateUsing(): bool
+    {
+        return $this->getStateUsing !== null;
     }
 
     /**
@@ -290,6 +379,9 @@ abstract class Column extends Component
         return [
             'sortable' => $this->sortable,
             'searchable' => $this->searchable,
+            'isSearchableIndividually' => $this->isSearchableIndividually,
+            'isSearchableGlobally' => $this->isSearchableGlobally,
+            'searchableColumns' => $this->searchableColumns,
             'toggleable' => $this->toggleable,
             'isToggledHiddenByDefault' => $this->isToggledHiddenByDefault,
             'descriptionPosition' => $this->descriptionPosition,
@@ -303,6 +395,7 @@ abstract class Column extends Component
             'size' => $this->size,
             'width' => $this->width,
             'hasFormatUsing' => $this->formatUsing !== null,
+            'hasGetStateUsing' => $this->getStateUsing !== null,
         ];
     }
 

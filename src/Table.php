@@ -59,6 +59,8 @@ class Table implements InertiaSerializable
 
     protected bool $infiniteScroll = false;
 
+    protected bool $extremePaginationLinks = false;
+
     protected bool $striped = false;
 
     protected bool $hoverable = false;
@@ -343,6 +345,32 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * Set the pagination page size options.
+     *
+     * @param  array<int>  $options
+     */
+    public function paginationPageOptions(array $options): static
+    {
+        $this->paginationPageOptions = $options;
+
+        return $this;
+    }
+
+    /**
+     * Set the pagination mode.
+     *
+     * @param  Enums\PaginationMode|string  $mode
+     */
+    public function paginationMode(Enums\PaginationMode|string $mode): static
+    {
+        // Store the pagination mode value (currently handled by paginated method)
+        // This method exists for Filament compatibility
+        // Simple mode uses less pagination buttons, Standard shows all, Cursor uses cursor-based pagination
+
+        return $this;
+    }
+
+    /**
      * Enable striped rows for the table.
      */
     public function striped(bool $condition = true): static
@@ -443,6 +471,16 @@ class Table implements InertiaSerializable
     public function infiniteScroll(bool $condition = true): static
     {
         $this->infiniteScroll = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Enable extreme pagination links (first/last page buttons).
+     */
+    public function extremePaginationLinks(bool $condition = true): static
+    {
+        $this->extremePaginationLinks = $condition;
 
         return $this;
     }
@@ -1198,12 +1236,20 @@ class Table implements InertiaSerializable
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
 
-                // Support dot notation for nested relation data (e.g., 'customer.full_name')
-                $value = $this->getValueByDotNotation($recordArray, $columnName);
-
-                // If using dot notation, flatten the value into the record array for frontend access
-                if (str_contains($columnName, '.') && $value !== null) {
+                // Check if column has a custom getStateUsing callback
+                if ($column->hasGetStateUsing()) {
+                    // Use custom state getter to get the value
+                    $value = $column->evaluateGetStateUsing($record);
+                    // Store the custom value in the record array for frontend access
                     $recordArray[$columnName] = $value;
+                } else {
+                    // Support dot notation for nested relation data (e.g., 'customer.full_name')
+                    $value = $this->getValueByDotNotation($recordArray, $columnName);
+
+                    // If using dot notation, flatten the value into the record array for frontend access
+                    if (str_contains($columnName, '.') && $value !== null) {
+                        $recordArray[$columnName] = $value;
+                    }
                 }
 
                 // Evaluate icon
@@ -1310,7 +1356,14 @@ class Table implements InertiaSerializable
                 $this->columns
             ),
             'filters' => array_map(
-                fn (Filter $filter) => $filter->toInertiaProps(),
+                function (Filter $filter) {
+                    // Pass the table's model to the filter for relationship loading
+                    if ($this->model) {
+                        $filter->model($this->model);
+                    }
+
+                    return $filter->toInertiaProps();
+                },
                 $this->filters
             ),
             'filterIndicators' => $filterIndicators,
@@ -1339,6 +1392,7 @@ class Table implements InertiaSerializable
             'paginated' => $this->paginated,
             'perPage' => $this->perPage,
             'paginationPageOptions' => $this->paginationPageOptions,
+            'extremePaginationLinks' => $this->extremePaginationLinks,
             'infiniteScroll' => $this->infiniteScroll,
             'striped' => $this->striped,
             'hoverable' => $this->hoverable,

@@ -40,6 +40,13 @@ class TextColumn extends Column
 
     protected ?string $countsRelation = null;
 
+    protected ?array $numericFormat = null;
+
+    protected mixed $action = null;
+
+    /** @var array<int, Summarizers\Summarizer> */
+    protected array $summarizers = [];
+
     /**
      * Count a relationship for this column.
      * The column name should be `relation_count` and will be populated via withCount.
@@ -117,6 +124,30 @@ class TextColumn extends Column
         return $this;
     }
 
+    /**
+     * Format the value as a number with locale-aware formatting.
+     *
+     * @param  int|null  $decimalPlaces  Number of decimal places
+     * @param  string|null  $decimalSeparator  Custom decimal separator
+     * @param  string|null  $thousandsSeparator  Custom thousands separator
+     * @param  string|null  $locale  Locale for number formatting (e.g., 'en', 'de', 'fr')
+     */
+    public function numeric(
+        ?int $decimalPlaces = null,
+        ?string $decimalSeparator = null,
+        ?string $thousandsSeparator = null,
+        ?string $locale = null,
+    ): static {
+        $this->numericFormat = [
+            'decimalPlaces' => $decimalPlaces,
+            'decimalSeparator' => $decimalSeparator,
+            'thousandsSeparator' => $thousandsSeparator,
+            'locale' => $locale,
+        ];
+
+        return $this;
+    }
+
     public function icon(?string $icon): static
     {
         $this->icon = $icon;
@@ -178,6 +209,52 @@ class TextColumn extends Column
         return $this;
     }
 
+    /**
+     * Set an action to be triggered when clicking on this column.
+     *
+     * @param  mixed  $action  Action instance or closure
+     */
+    public function action(mixed $action): static
+    {
+        $this->action = $action;
+
+        return $this;
+    }
+
+    /**
+     * Get the action for this column.
+     */
+    public function getAction(): mixed
+    {
+        return $this->action;
+    }
+
+    /**
+     * Add summarizers to calculate aggregate values for this column.
+     *
+     * @param  array<int, Summarizers\Summarizer>|Summarizers\Summarizer  $summarizers
+     */
+    public function summarize(array|Summarizers\Summarizer $summarizers): static
+    {
+        if (! is_array($summarizers)) {
+            $summarizers = [$summarizers];
+        }
+
+        $this->summarizers = $summarizers;
+
+        return $this;
+    }
+
+    /**
+     * Get the summarizers for this column.
+     *
+     * @return array<int, Summarizers\Summarizer>
+     */
+    public function getSummarizers(): array
+    {
+        return $this->summarizers;
+    }
+
     protected function getVueComponent(): string
     {
         return 'TextColumn';
@@ -203,6 +280,12 @@ class TextColumn extends Column
             'separator' => $this->separator,
             'listWithLineBreaks' => $this->listWithLineBreaks,
             'bulleted' => $this->bulleted,
+            'numericFormat' => $this->numericFormat,
+            'hasAction' => $this->action !== null,
+            'summarizers' => array_map(
+                fn (Summarizers\Summarizer $summarizer) => $summarizer->toArray(),
+                $this->summarizers
+            ),
         ];
     }
 
