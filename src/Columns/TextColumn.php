@@ -12,6 +12,10 @@ class TextColumn extends Column
 
     protected ?string $copyable = null;
 
+    protected ?string $copyMessage = null;
+
+    protected ?int $copyMessageDuration = null;
+
     protected bool $badge = false;
 
     protected ?string $dateTimeFormat = null;
@@ -82,6 +86,42 @@ class TextColumn extends Column
         $this->copyable = is_string($condition) ? $condition : ($condition ? 'Copy' : null);
 
         return $this;
+    }
+
+    /**
+     * Set the message shown after copying.
+     */
+    public function copyMessage(?string $message): static
+    {
+        $this->copyMessage = $message;
+
+        return $this;
+    }
+
+    /**
+     * Get the copy message.
+     */
+    public function getCopyMessage(): ?string
+    {
+        return $this->copyMessage;
+    }
+
+    /**
+     * Set how long the copy message is shown (in milliseconds).
+     */
+    public function copyMessageDuration(?int $duration): static
+    {
+        $this->copyMessageDuration = $duration;
+
+        return $this;
+    }
+
+    /**
+     * Get the copy message duration.
+     */
+    public function getCopyMessageDuration(): ?int
+    {
+        return $this->copyMessageDuration;
     }
 
     public function badge(bool $condition = true): static
@@ -267,6 +307,8 @@ class TextColumn extends Column
             'limit' => $this->limit,
             'wrap' => $this->wrap,
             'copyable' => $this->copyable,
+            'copyMessage' => $this->copyMessage,
+            'copyMessageDuration' => $this->copyMessageDuration,
             'badge' => $this->badge,
             'dateTimeFormat' => $this->dateTimeFormat,
             'dateFormat' => $this->dateFormat,

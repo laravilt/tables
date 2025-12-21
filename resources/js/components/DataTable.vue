@@ -643,6 +643,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 :resource-slug="resourceSlug"
                 :column-execution-route="columnExecutionRoute"
                 v-bind="column"
+                :default-image-url="record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl"
               />
             </td>
 

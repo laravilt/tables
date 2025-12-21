@@ -24,6 +24,7 @@ interface TextColumnProps {
   description?: string | null
   descriptionPosition?: 'above' | 'below'
   html?: boolean
+  placeholder?: string | null
   // New FilamentPHP v4 compatible props
   alignment?: 'start' | 'center' | 'end' | 'justify'
   tooltip?: string | null
@@ -49,6 +50,7 @@ const props = withDefaults(defineProps<TextColumnProps>(), {
   description: null,
   descriptionPosition: 'below',
   html: false,
+  placeholder: null,
   alignment: 'start',
   tooltip: null,
   url: null,
@@ -61,6 +63,17 @@ const props = withDefaults(defineProps<TextColumnProps>(), {
 
 // Check if value is an array (for badge rendering of many-to-many relationships)
 const isArray = computed(() => Array.isArray(props.value))
+
+// Check if value is empty (null, undefined, empty string, or empty array)
+const isEmpty = computed(() => {
+  if (props.value === null || props.value === undefined || props.value === '') {
+    return true
+  }
+  if (Array.isArray(props.value) && props.value.length === 0) {
+    return true
+  }
+  return false
+})
 
 // Check if value is an object or array (for JSON formatting)
 const isObjectOrArray = computed(() => {
@@ -294,7 +307,12 @@ const displayValue = computed(() => {
               class="h-4 w-4 shrink-0 mt-0.5"
             />
 
-            <div v-if="badge && isArray" class="flex flex-wrap gap-1.5">
+            <!-- Show placeholder when empty -->
+            <span v-if="isEmpty && placeholder" class="text-muted-foreground">
+              {{ placeholder }}
+            </span>
+
+            <div v-else-if="badge && isArray && !isEmpty" class="flex flex-wrap gap-1.5">
               <Badge
                 v-for="(item, index) in value"
                 :key="index"
@@ -310,7 +328,7 @@ const displayValue = computed(() => {
               </Badge>
             </div>
 
-            <Badge v-else-if="badge" :variant="badgeVariant" class="font-normal flex items-center gap-1.5">
+            <Badge v-else-if="badge && !isEmpty" :variant="badgeVariant" class="font-normal flex items-center gap-1.5">
               <component
                 :is="lucideIconComponent"
                 v-if="lucideIconComponent"
@@ -370,8 +388,13 @@ const displayValue = computed(() => {
         class="h-4 w-4 shrink-0 mt-0.5"
       />
 
+      <!-- Show placeholder when empty -->
+      <span v-if="isEmpty && placeholder" class="text-muted-foreground">
+        {{ placeholder }}
+      </span>
+
       <!-- Multiple badges for array values (many-to-many relationships) -->
-      <div v-if="badge && isArray" class="flex flex-wrap gap-1.5">
+      <div v-else-if="badge && isArray && !isEmpty" class="flex flex-wrap gap-1.5">
         <Badge
           v-for="(item, index) in value"
           :key="index"
@@ -388,7 +411,7 @@ const displayValue = computed(() => {
       </div>
 
       <!-- Single badge -->
-      <Badge v-else-if="badge" :variant="badgeVariant" class="font-normal flex items-center gap-1.5">
+      <Badge v-else-if="badge && !isEmpty" :variant="badgeVariant" class="font-normal flex items-center gap-1.5">
         <component
           :is="lucideIconComponent"
           v-if="lucideIconComponent"

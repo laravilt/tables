@@ -958,6 +958,7 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                         :icon="record._icons?.[column.name]"
                         :size="record._sizes?.[column.name]"
                         :description="record._descriptions?.[column.name]"
+                        :default-image-url="record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl"
                         :resource-slug="resourceSlug"
                     />
                 </CardContent>

@@ -358,8 +358,6 @@ class Table implements InertiaSerializable
 
     /**
      * Set the pagination mode.
-     *
-     * @param  Enums\PaginationMode|string  $mode
      */
     public function paginationMode(Enums\PaginationMode|string $mode): static
     {
@@ -809,9 +807,9 @@ class Table implements InertiaSerializable
                     }
                 }
 
-                // Get the URL from the action
+                // Get the URL from the action (pass record for closure-based URLs)
                 if (method_exists($actionClone, 'getUrl')) {
-                    return $actionClone->getUrl();
+                    return $actionClone->getUrl($record);
                 }
             }
         }
@@ -1204,8 +1202,32 @@ class Table implements InertiaSerializable
         $segments = explode('.', $key);
         $value = $array;
 
-        foreach ($segments as $segment) {
-            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+        foreach ($segments as $index => $segment) {
+            if (! is_array($value)) {
+                return null;
+            }
+
+            // Check if current value is a collection (array of arrays/objects)
+            // This handles relationships like 'roles.name' where roles is a collection
+            if (isset($value[0]) && is_array($value[0])) {
+                // Pluck the remaining segments from each item in the collection
+                $remainingSegments = array_slice($segments, $index);
+                $pluckedKey = implode('.', $remainingSegments);
+
+                $result = array_values(array_filter(array_map(function ($item) use ($pluckedKey) {
+                    return data_get($item, $pluckedKey);
+                }, $value)));
+
+                // Return null if empty so placeholder shows instead of empty badge
+                return empty($result) ? null : $result;
+            }
+
+            // Handle empty collection (no items)
+            if (empty($value)) {
+                return null;
+            }
+
+            if (! array_key_exists($segment, $value)) {
                 return null;
             }
             $value = $value[$segment];
@@ -1232,6 +1254,7 @@ class Table implements InertiaSerializable
             $recordArray['_colors'] = [];
             $recordArray['_sizes'] = [];
             $recordArray['_descriptions'] = [];
+            $recordArray['_defaultImageUrls'] = [];
 
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
@@ -1246,8 +1269,9 @@ class Table implements InertiaSerializable
                     // Support dot notation for nested relation data (e.g., 'customer.full_name')
                     $value = $this->getValueByDotNotation($recordArray, $columnName);
 
-                    // If using dot notation, flatten the value into the record array for frontend access
-                    if (str_contains($columnName, '.') && $value !== null) {
+                    // Always flatten dot notation values into the record array for frontend access
+                    // This includes null values so the frontend knows there's no data
+                    if (str_contains($columnName, '.')) {
                         $recordArray[$columnName] = $value;
                     }
                 }
@@ -1274,6 +1298,14 @@ class Table implements InertiaSerializable
                 $description = $column->evaluateDescription($record);
                 if ($description !== null) {
                     $recordArray['_descriptions'][$columnName] = $description;
+                }
+
+                // Evaluate defaultImageUrl for ImageColumn
+                if ($column instanceof \Laravilt\Tables\Columns\ImageColumn && method_exists($column, 'evaluateDefaultImageUrl')) {
+                    $defaultImageUrl = $column->evaluateDefaultImageUrl($value, $record);
+                    if ($defaultImageUrl !== null) {
+                        $recordArray['_defaultImageUrls'][$columnName] = $defaultImageUrl;
+                    }
                 }
 
                 // Evaluate formatUsing - apply format callback to transform the value
@@ -1388,7 +1420,7 @@ class Table implements InertiaSerializable
                 $this->processBulkActions()
             ),
             'searchable' => $this->searchable,
-            'searchPlaceholder' => $this->searchPlaceholder ?? 'Search...',
+            'searchPlaceholder' => $this->searchPlaceholder ?? __('tables::tables.search.placeholder'),
             'paginated' => $this->paginated,
             'perPage' => $this->perPage,
             'paginationPageOptions' => $this->paginationPageOptions,
