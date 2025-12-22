@@ -270,8 +270,9 @@ class Table implements InertiaSerializable
             return $action;
         }
 
-        // Handle DeleteBulkAction - inject model if not already set
-        if ($action instanceof \Laravilt\Actions\DeleteBulkAction) {
+        // Inject model for bulk actions that need it for permission checking
+        // Check if action has getModel() and model() methods (bulk actions)
+        if (method_exists($action, 'getModel') && method_exists($action, 'model')) {
             if ($action->getModel() === null) {
                 $action->model($this->model);
             }
@@ -1460,6 +1461,8 @@ class Table implements InertiaSerializable
             // API-specific properties
             'apiEnabled' => $this->apiEnabled,
             'apiResource' => $this->getApiResource()?->toInertiaProps(),
+            // Permission options set by resources
+            'options' => $this->options,
         ];
     }
 

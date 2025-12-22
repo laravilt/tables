@@ -84,13 +84,16 @@ const extractedBulkActions = computed(() => {
         }
     }
 
-    // Set preserveState: false for all bulk actions so table refreshes after action
-    return actions.map(action => ({
-        ...action,
-        preserveState: action.preserveState ?? false,
-        isBulkAction: true,
-        deselectRecordsAfterCompletion: action.deselectRecordsAfterCompletion ?? true,
-    }))
+    // Filter out hidden actions (based on isHidden property from backend)
+    // and set preserveState: false for all bulk actions so table refreshes after action
+    return actions
+        .filter(action => !action.isHidden)
+        .map(action => ({
+            ...action,
+            preserveState: action.preserveState ?? false,
+            isBulkAction: true,
+            deselectRecordsAfterCompletion: action.deselectRecordsAfterCompletion ?? true,
+        }))
 })
 
 // Check if table is configured for grid-only mode
