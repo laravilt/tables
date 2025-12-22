@@ -109,7 +109,7 @@ class SelectColumn extends Column
             'options' => $this->getOptions(),
             'rules' => $this->rules,
             'native' => $this->native,
-            'searchable' => $this->searchable,
+            'optionsSearchable' => $this->optionsSearchable,
             'selectablePlaceholder' => $this->selectablePlaceholder,
         ];
     }
