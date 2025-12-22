@@ -12,7 +12,7 @@ class SelectColumn extends Column
 
     protected bool $native = true;
 
-    protected bool $searchable = false;
+    protected bool $optionsSearchable = false;
 
     protected ?Closure $beforeStateUpdated = null;
 
@@ -43,9 +43,9 @@ class SelectColumn extends Column
         return $this;
     }
 
-    public function searchable(bool $condition = true): static
+    public function optionsSearchable(bool $condition = true): static
     {
-        $this->searchable = $condition;
+        $this->optionsSearchable = $condition;
 
         return $this;
     }
