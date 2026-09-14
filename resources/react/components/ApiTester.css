@@ -1,0 +1,90 @@
+/* Sidebar tooltip styles (scoped in ApiTester.vue; `.sidebar-tooltip` is only used by this component) */
+.sidebar-tooltip {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 8px;
+    padding: 6px 10px;
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 50;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    pointer-events: none;
+}
+
+/* Tooltip arrow */
+.sidebar-tooltip::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    background: hsl(var(--popover));
+    border-left: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Show tooltip on hover */
+.group:hover .sidebar-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Global scrollbar styles (not scoped) */
+/* Custom scrollbar for API Tester */
+.api-tester-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.api-tester-scrollbar::-webkit-scrollbar-track {
+    background: #e5e5e5;
+    border-radius: 4px;
+}
+
+.api-tester-scrollbar::-webkit-scrollbar-thumb {
+    background: #a3a3a3;
+    border-radius: 4px;
+}
+
+.api-tester-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #737373;
+}
+
+/* Dark mode scrollbar */
+.dark .api-tester-scrollbar::-webkit-scrollbar-track {
+    background: #262626;
+}
+
+.dark .api-tester-scrollbar::-webkit-scrollbar-thumb {
+    background: #525252;
+}
+
+.dark .api-tester-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #737373;
+}
+
+/* Firefox scrollbar */
+.api-tester-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #a3a3a3 #e5e5e5;
+}
+
+.dark .api-tester-scrollbar {
+    scrollbar-color: #525252 #262626;
+}
+
+/* Scrollbar corner */
+.api-tester-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+}
