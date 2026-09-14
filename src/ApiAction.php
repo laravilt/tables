@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Laravilt\Tables;
 
 use Closure;
+use Illuminate\Http\Request;
 use Laravilt\Support\Contracts\InertiaSerializable;
 
 /**
@@ -162,7 +163,7 @@ class ApiAction implements InertiaSerializable
      * Set the action callback.
      * The callback receives the record (or null) and the request.
      *
-     * @param  Closure(mixed $record, \Illuminate\Http\Request $request): mixed  $action
+     * @param  Closure(mixed $record, Request $request): mixed  $action
      */
     public function action(Closure $action): static
     {
@@ -174,7 +175,7 @@ class ApiAction implements InertiaSerializable
     /**
      * Set a before action hook.
      *
-     * @param  Closure(mixed $record, \Illuminate\Http\Request $request): void  $callback
+     * @param  Closure(mixed $record, Request $request): void  $callback
      */
     public function before(Closure $callback): static
     {
@@ -186,7 +187,7 @@ class ApiAction implements InertiaSerializable
     /**
      * Set an after action hook.
      *
-     * @param  Closure(mixed $record, \Illuminate\Http\Request $request, mixed $result): void  $callback
+     * @param  Closure(mixed $record, Request $request, mixed $result): void  $callback
      */
     public function after(Closure $callback): static
     {
@@ -449,7 +450,7 @@ class ApiAction implements InertiaSerializable
     /**
      * Execute the action.
      */
-    public function execute(mixed $record, \Illuminate\Http\Request $request): mixed
+    public function execute(mixed $record, Request $request): mixed
     {
         // Run before hook
         if ($this->beforeAction !== null && is_callable($this->beforeAction)) {

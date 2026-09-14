@@ -3,8 +3,12 @@
 namespace Laravilt\Tables;
 
 use Closure;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Laravilt\Panel\PanelRegistry;
 use Laravilt\Support\Contracts\InertiaSerializable;
 use Laravilt\Tables\Columns\Column;
+use Laravilt\Tables\Columns\ImageColumn;
 use Laravilt\Tables\Filters\Filter;
 
 class Table implements InertiaSerializable
@@ -669,7 +673,7 @@ class Table implements InertiaSerializable
     public function getColumnExecutionRouteName(): string
     {
         // Get current panel from registry
-        $registry = app(\Laravilt\Panel\PanelRegistry::class);
+        $registry = app(PanelRegistry::class);
         $panel = $registry->getCurrent();
 
         if (! $panel) {
@@ -692,7 +696,7 @@ class Table implements InertiaSerializable
     public function getReorderRouteName(): string
     {
         // Get current panel from registry
-        $registry = app(\Laravilt\Panel\PanelRegistry::class);
+        $registry = app(PanelRegistry::class);
         $panel = $registry->getCurrent();
 
         if (! $panel) {
@@ -1120,7 +1124,7 @@ class Table implements InertiaSerializable
 
                     if ($columnExists) {
                         // Handle BelongsTo relation
-                        if ($relation instanceof \Illuminate\Database\Eloquent\Relations\BelongsTo) {
+                        if ($relation instanceof BelongsTo) {
                             $foreignKey = $relation->getForeignKeyName();
                             $ownerKey = $relation->getOwnerKeyName();
 
@@ -1129,7 +1133,7 @@ class Table implements InertiaSerializable
                                 ->select("{$mainTable}.*");
                         }
                         // Handle HasOne relation
-                        elseif ($relation instanceof \Illuminate\Database\Eloquent\Relations\HasOne) {
+                        elseif ($relation instanceof HasOne) {
                             $foreignKey = $relation->getForeignKeyName();
                             $localKey = $relation->getLocalKeyName();
 
@@ -1302,7 +1306,7 @@ class Table implements InertiaSerializable
                 }
 
                 // Evaluate defaultImageUrl for ImageColumn
-                if ($column instanceof \Laravilt\Tables\Columns\ImageColumn && method_exists($column, 'evaluateDefaultImageUrl')) {
+                if ($column instanceof ImageColumn && method_exists($column, 'evaluateDefaultImageUrl')) {
                     $defaultImageUrl = $column->evaluateDefaultImageUrl($value, $record);
                     if ($defaultImageUrl !== null) {
                         $recordArray['_defaultImageUrls'][$columnName] = $defaultImageUrl;

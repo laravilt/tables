@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Laravilt\Tables;
 
+use Illuminate\Foundation\Http\FormRequest;
 use Laravilt\Support\Contracts\InertiaSerializable;
 
 /**
@@ -57,14 +58,14 @@ class ApiResource implements InertiaSerializable
     /**
      * Custom FormRequest class for create validation.
      *
-     * @var class-string<\Illuminate\Foundation\Http\FormRequest>|null
+     * @var class-string<FormRequest>|null
      */
     protected ?string $createValidationRequest = null;
 
     /**
      * Custom FormRequest class for update validation.
      *
-     * @var class-string<\Illuminate\Foundation\Http\FormRequest>|null
+     * @var class-string<FormRequest>|null
      */
     protected ?string $updateValidationRequest = null;
 
@@ -440,7 +441,7 @@ class ApiResource implements InertiaSerializable
      * Set custom FormRequest class for validation.
      * This overrides the ApiColumn-based validation rules.
      *
-     * @param  class-string<\Illuminate\Foundation\Http\FormRequest>  $requestClass
+     * @param  class-string<FormRequest>  $requestClass
      * @param  string|null  $operation  'create', 'update', or null for both
      */
     public function validationRequest(string $requestClass, ?string $operation = null): static
@@ -459,7 +460,7 @@ class ApiResource implements InertiaSerializable
     /**
      * Set custom FormRequest class specifically for create validation.
      *
-     * @param  class-string<\Illuminate\Foundation\Http\FormRequest>  $requestClass
+     * @param  class-string<FormRequest>  $requestClass
      */
     public function createValidationRequest(string $requestClass): static
     {
@@ -471,7 +472,7 @@ class ApiResource implements InertiaSerializable
     /**
      * Set custom FormRequest class specifically for update validation.
      *
-     * @param  class-string<\Illuminate\Foundation\Http\FormRequest>  $requestClass
+     * @param  class-string<FormRequest>  $requestClass
      */
     public function updateValidationRequest(string $requestClass): static
     {
@@ -483,7 +484,7 @@ class ApiResource implements InertiaSerializable
     /**
      * Get the FormRequest class for the specified operation.
      *
-     * @return class-string<\Illuminate\Foundation\Http\FormRequest>|null
+     * @return class-string<FormRequest>|null
      */
     public function getValidationRequestClass(string $operation = 'create'): ?string
     {

@@ -3,6 +3,8 @@
 namespace Laravilt\Tables\Filters;
 
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Laravilt\Forms\Components\Field;
 use Laravilt\Support\Component;
 
@@ -167,7 +169,7 @@ class Filter extends Component
     /**
      * Apply the filter to the query.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  Builder<Model>  $query
      */
     public function apply($query, mixed $value)
     {

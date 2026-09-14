@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Laravilt\Tables;
 
 use Closure;
+use Laravilt\Core\Component;
 use Laravilt\Support\Contracts\FlutterSerializable;
 use Laravilt\Support\Contracts\InertiaSerializable;
+use Laravilt\Tables\Columns\Column;
 
 class Card implements FlutterSerializable, InertiaSerializable
 {
-    /** @var array<int, \Laravilt\Core\Component> */
+    /** @var array<int, Component> */
     protected array $schema = [];
 
-    /** @var array<int, \Laravilt\Tables\Columns\Column> */
+    /** @var array<int, Column> */
     protected array $columns = [];
 
     protected ?Closure $header = null;
@@ -132,7 +134,7 @@ class Card implements FlutterSerializable, InertiaSerializable
     }
 
     /**
-     * @param  array<int, \Laravilt\Core\Component>  $schema
+     * @param  array<int, Component>  $schema
      */
     public function schema(array $schema): static
     {
@@ -144,7 +146,7 @@ class Card implements FlutterSerializable, InertiaSerializable
     /**
      * Set specific columns to display in the card body
      *
-     * @param  array<int, \Laravilt\Tables\Columns\Column>  $columns
+     * @param  array<int, Column>  $columns
      */
     public function columns(array $columns): static
     {
@@ -298,7 +300,7 @@ class Card implements FlutterSerializable, InertiaSerializable
     }
 
     /**
-     * @return array<int, \Laravilt\Core\Component>
+     * @return array<int, Component>
      */
     public function getSchema(): array
     {

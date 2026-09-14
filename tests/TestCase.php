@@ -2,6 +2,7 @@
 
 namespace Laravilt\Tables\Tests;
 
+use Laravilt\Tables\TablesServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
@@ -16,7 +17,7 @@ class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            \Laravilt\Tables\TablesServiceProvider::class,
+            TablesServiceProvider::class,
         ];
     }
 
