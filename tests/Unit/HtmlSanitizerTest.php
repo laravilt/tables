@@ -59,6 +59,27 @@ it('strips javascript and data urls', function (string $html) {
     '<svg><a xlink:href="javascript:alert(1)">x</a></svg>',
 ]);
 
+it('allows base64 raster data urls in img src', function (string $mime) {
+    $html = '<img src="data:image/'.$mime.';base64,iVBORw0KGgoAAAANSUhEUg==" alt="x">';
+
+    expect(HtmlSanitizer::sanitize($html))->toBe($html);
+})->with(['png', 'jpeg', 'jpg', 'gif', 'webp', 'avif', 'PNG']);
+
+it('blocks data urls that are not base64 raster images in img src', function (string $html) {
+    expect(strtolower(HtmlSanitizer::sanitize($html)))->not->toContain('data:');
+})->with([
+    'svg' => '<img src="data:image/svg+xml;base64,PHN2Zz4=">',
+    'svg plain' => '<img src="data:image/svg+xml,<svg onload=alert(1)>">',
+    'text/html' => '<img src="data:text/html;base64,PHNjcmlwdD4=">',
+    'non-base64 png' => '<img src="data:image/png,abc">',
+    'trailing payload' => '<img src="data:image/png;base64,AAAA,javascript:alert(1)">',
+    'img srcset' => '<img srcset="data:image/png;base64,AAAA 1x">',
+    'a href' => '<a href="data:image/png;base64,AAAA">x</a>',
+    'a href html' => '<a href="data:text/html;base64,PHNjcmlwdD4=">x</a>',
+    'source src' => '<video><source src="data:image/png;base64,AAAA"></video>',
+    'iframe-like object data' => '<div data="data:image/png;base64,AAAA">x</div>',
+]);
+
 it('keeps relative and mailto urls', function () {
     $html = '<a href="/admin/users/1">u</a><a href="mailto:a@b.c">m</a>';
 

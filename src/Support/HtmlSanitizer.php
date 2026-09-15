@@ -108,13 +108,26 @@ class HtmlSanitizer
             $value = $attribute->nodeValue ?? '';
 
             $remove = str_starts_with($name, 'on')
-                || (in_array($name, static::URL_ATTRIBUTES, true) && static::hasBlockedScheme($value))
+                || (in_array($name, static::URL_ATTRIBUTES, true)
+                    && ! static::isAllowedImageDataUrl($element, $name, $value)
+                    && static::hasBlockedScheme($value))
                 || ($name === 'style' && static::hasDangerousStyle($value));
 
             if ($remove) {
                 $element->removeAttributeNode($attribute);
             }
         }
+    }
+
+    /**
+     * Inline base64 raster images are allowed in <img src> only: raster formats can't execute script.
+     * SVG (can embed script), other media types, and data: URLs on any other element/attribute stay blocked.
+     */
+    protected static function isAllowedImageDataUrl(DOMElement $element, string $attribute, string $value): bool
+    {
+        return strtolower($element->nodeName) === 'img'
+            && $attribute === 'src'
+            && preg_match('#^\s*data:image/(png|jpe?g|gif|webp|avif);base64,[a-z0-9+/=\s]*$#i', $value) === 1;
     }
 
     protected static function hasBlockedScheme(string $value): bool
