@@ -87,6 +87,28 @@ watch(() => props.clearSelections, () => {
     selectAll.value = false
 })
 
+// Normalize any value (number, object, null) to a display string before calling string methods on it
+const toDisplayString = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value)
+        } catch {
+            return String(value)
+        }
+    }
+    return String(value)
+}
+
+// Forward the full column config (limit, wrap, badge, imageWidth, editable, name, ...) to the grid column
+// component, restricted to the props it declares so unknown keys don't fall through as DOM attributes.
+const getColumnProps = (column: any) => {
+    const declared = getColumnComponent(column.component)?.props
+    if (!declared) return {}
+    const keys = Array.isArray(declared) ? declared : Object.keys(declared)
+    return Object.fromEntries(Object.entries(column).filter(([key]) => keys.includes(key)))
+}
+
 const getColumnComponent = (columnType: string) => {
     const components: Record<string, any> = {
         'text_grid_column': TextGridColumn,
@@ -300,7 +322,8 @@ const getRelativeTime = (record: any) => {
 
 // Get avatar initials from title
 const getAvatarInitials = (record: any) => {
-    const title = getTitle(record)
+    // Normalize first: the configured title field may hold a number or object
+    const title = toDisplayString(getTitle(record))
     if (!title) return '?'
     const words = title.split(' ')
     if (words.length >= 2) {
@@ -560,30 +583,13 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                     <!-- Top Header: Checkbox + ID -->
                     <div class="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
                         <!-- Selection Checkbox -->
-                        <div
+                        <Checkbox
                             v-if="bulkActionsAvailable"
-                            @click.stop="handleSelectRecord(record.id)"
-                        >
-                            <div
-                                :class="[
-                                    'h-5 w-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200',
-                                    isSelected(record.id)
-                                        ? 'bg-primary border-primary'
-                                        : 'border-muted-foreground/40 hover:border-primary/60 bg-background'
-                                ]"
-                            >
-                                <svg
-                                    v-if="isSelected(record.id)"
-                                    class="h-3.5 w-3.5 text-primary-foreground"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                >
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        </div>
+                            :model-value="isSelected(record.id)"
+                            @update:model-value="() => handleSelectRecord(record.id)"
+                            :aria-label="`Select record #${toDisplayString(record.id)}`"
+                            class="size-5 rounded border-2 border-muted-foreground/40 bg-background cursor-pointer hover:border-primary/60"
+                        />
                         <!-- Record ID -->
                         <span class="text-xs font-mono text-muted-foreground/70 select-none">#{{ record.id }}</span>
                     </div>
@@ -696,7 +702,7 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                         class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                     <div v-else class="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <span class="text-4xl font-bold text-primary/30">{{ getTitle(record)?.charAt(0) || '?' }}</span>
+                        <span class="text-4xl font-bold text-primary/30">{{ toDisplayString(getTitle(record)).charAt(0) || '?' }}</span>
                     </div>
 
                     <!-- Gradient Overlay -->
@@ -705,8 +711,9 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                     <!-- Selection Checkbox (top-left) -->
                     <div v-if="bulkActionsAvailable" class="absolute top-3 left-3 z-10">
                         <Checkbox
-                            :checked="isSelected(record.id)"
-                            @update:checked="() => handleSelectRecord(record.id)"
+                            :model-value="isSelected(record.id)"
+                            @update:model-value="() => handleSelectRecord(record.id)"
+                            :aria-label="`Select record #${toDisplayString(record.id)}`"
                             class="border-white/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                     </div>
@@ -772,26 +779,12 @@ const handleCardClick = (event: MouseEvent, record: any) => {
             >
                 <!-- Selection Checkbox (floating) -->
                 <div v-if="bulkActionsAvailable" class="absolute top-3 left-3 z-20">
-                    <div
-                        @click.stop="handleSelectRecord(record.id)"
-                        :class="[
-                            'h-5 w-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm',
-                            isSelected(record.id)
-                                ? 'bg-primary border-primary'
-                                : 'border-white/80 hover:border-primary/60 bg-white/90 backdrop-blur-sm'
-                        ]"
-                    >
-                        <svg
-                            v-if="isSelected(record.id)"
-                            class="h-3.5 w-3.5 text-primary-foreground"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="3"
-                        >
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
+                    <Checkbox
+                        :model-value="isSelected(record.id)"
+                        @update:model-value="() => handleSelectRecord(record.id)"
+                        :aria-label="`Select record #${toDisplayString(record.id)}`"
+                        class="size-5 rounded border-2 border-white/80 bg-white/90 backdrop-blur-sm shadow-sm cursor-pointer hover:border-primary/60"
+                    />
                 </div>
 
                 <!-- Badge (floating top-right) -->
@@ -931,8 +924,9 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                 <CardHeader v-if="bulkActionsAvailable || getTitle(record)" class="flex-row items-start gap-3 space-y-0 pb-3">
                     <Checkbox
                         v-if="bulkActionsAvailable"
-                        :checked="isSelected(record.id)"
-                        @update:checked="() => handleSelectRecord(record.id)"
+                        :model-value="isSelected(record.id)"
+                        @update:model-value="() => handleSelectRecord(record.id)"
+                        :aria-label="`Select record #${toDisplayString(record.id)}`"
                         class="mt-1"
                     />
                     <div class="flex-1 min-w-0">
@@ -951,8 +945,10 @@ const handleCardClick = (event: MouseEvent, record: any) => {
                         v-for="column in gridColumns"
                         :key="column.name"
                         :is="getColumnComponent(column.component)"
+                        v-bind="getColumnProps(column)"
                         :column="column"
                         :record="record"
+                        :record-id="record.id"
                         :value="record[column.name]"
                         :color="record._colors?.[column.name]"
                         :icon="record._icons?.[column.name]"

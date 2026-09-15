@@ -284,7 +284,9 @@ watch(() => props.records, (newRecords, oldRecords) => {
     } else {
         allRecords.value = newRecords
     }
-}, { immediate: true, deep: true })
+    // Not immediate: allRecords is already seeded with props.records. Running immediately on a deep link to
+    // page > 1 appended the initial page to itself, duplicating every record.
+}, { deep: true })
 
 // Watch for search, filter, sort changes to reset records (only after initialization)
 watch([searchQuery, activeFilters, sortColumn, sortDirection], (newValues, oldValues) => {
@@ -382,9 +384,9 @@ const handleGroupChange = (group: string | null) => {
         urlParams.delete('group')
     }
 
-    // If using AJAX mode, reload data
+    // If using AJAX mode, reload data (reloadData() sends the new group from activeGroup).
+    // AJAX mode keeps search/filter/group state out of the URL, so there is nothing to push here.
     if (props.useAjax) {
-        updateUrl({ group: group || undefined })
         reloadData()
     } else {
         // For Inertia, do a full navigation
@@ -943,6 +945,7 @@ onUnmounted(() => {
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :resource-slug="resourceSlug"
                 :column-execution-route="relationContext?.columnExecutionRoute || table.columnExecutionRoute"
+                :column-update-route="relationContext ? null : table.columnUpdateRoute"
                 :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
                 :fixed-actions="table.fixedActions"

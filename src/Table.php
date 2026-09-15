@@ -5,6 +5,7 @@ namespace Laravilt\Tables;
 use Closure;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Route;
 use Laravilt\Panel\PanelRegistry;
 use Laravilt\Support\Contracts\InertiaSerializable;
 use Laravilt\Tables\Columns\Column;
@@ -691,6 +692,27 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * URL of the authorized inline column update endpoint (see Http\ColumnStateRoutes), with an
+     * `__ID__` placeholder for the record key. Null when the table isn't bound to a panel resource.
+     */
+    public function getColumnUpdateRoute(): ?string
+    {
+        if (! $this->resourceSlug) {
+            return null;
+        }
+
+        $registry = app(PanelRegistry::class);
+        $panel = $registry->getCurrent() ?? $registry->getDefault();
+        $name = ($panel?->getId() ?? 'admin').'.'.Http\ColumnStateRoutes::ROUTE_NAME;
+
+        if (! Route::has($name)) {
+            return null;
+        }
+
+        return route($name, ['resource' => $this->resourceSlug, 'record' => '__ID__']);
+    }
+
+    /**
      * Get the reorder route name.
      */
     public function getReorderRouteName(): string
@@ -1320,6 +1342,15 @@ class Table implements InertiaSerializable
                         $recordArray[$columnName] = $formattedValue;
                     }
                 }
+
+                // HTML columns are rendered with v-html / dangerouslySetInnerHTML: sanitize server-side
+                // so both frontends receive safe markup (runs after formatUsing, which may build HTML)
+                if ($column instanceof Columns\TextColumn && $column->isHtml()) {
+                    $htmlValue = $recordArray[$columnName] ?? $value;
+                    if (is_string($htmlValue)) {
+                        $recordArray[$columnName] = Support\HtmlSanitizer::sanitize($htmlValue);
+                    }
+                }
             }
 
             // Evaluate card badge color if card has badge color callback
@@ -1461,6 +1492,7 @@ class Table implements InertiaSerializable
             'queryRoute' => $this->queryRoute ?? request()->url(),
             'resourceSlug' => $this->resourceSlug ?? '',
             'columnExecutionRoute' => $this->resourceSlug ? route($this->getColumnExecutionRouteName(), ['id' => '__ID__']) : null,
+            'columnUpdateRoute' => $this->getColumnUpdateRoute(),
             'model' => $this->model,
             // API-specific properties
             'apiEnabled' => $this->apiEnabled,

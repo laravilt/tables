@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3'
 import { Switch } from '@/components/ui/switch'
 import { useNotification } from '@laravilt/notifications/composables/useNotification'
 import { useLocalization } from '@/composables/useLocalization'
+import { useColumnUpdate } from '../../composables/useColumnUpdate'
 
 // Initialize localization
 const { trans } = useLocalization()
@@ -11,8 +12,12 @@ const { trans } = useLocalization()
 interface ToggleColumnProps {
   value: any
   name: string
+  label?: string | null
   recordId: number | string
   resourceSlug?: string
+  /** Authorized, validated column update endpoint (preferred when present) */
+  columnUpdateRoute?: string | null
+  /** Legacy panel endpoint, still used by relation manager tables */
   columnExecutionRoute?: string
   editable?: boolean
   disabled?: boolean
@@ -30,7 +35,9 @@ const props = withDefaults(defineProps<ToggleColumnProps>(), {
   disabled: false,
   description: null,
   descriptionPosition: 'below',
+  label: null,
   resourceSlug: '',
+  columnUpdateRoute: null,
   columnExecutionRoute: undefined,
   successNotificationTitle: 'Updated',
   successNotificationMessage: 'Value updated successfully',
@@ -39,6 +46,20 @@ const props = withDefaults(defineProps<ToggleColumnProps>(), {
 })
 
 const { notify } = useNotification()
+
+// Optimistic save through the column update endpoint (reverts on failure)
+const update = useColumnUpdate<boolean>(
+  () => Boolean(props.value),
+  () => ({
+    name: props.name,
+    recordId: props.recordId,
+    columnUpdateRoute: props.columnUpdateRoute,
+    editable: props.editable,
+    disabled: props.disabled,
+  }),
+)
+const { localValue: updateValue, isSaving: updateIsSaving, isDisabled: updateIsDisabled } = update
+const usesUpdateRoute = computed(() => Boolean(props.columnUpdateRoute))
 
 // Compute the execution URL - replace __ID__ placeholder with actual record ID
 const executionUrl = computed(() => {
@@ -114,6 +135,18 @@ const isChecked = computed({
     <!-- Main content -->
     <div class="flex items-center">
       <Switch
+        v-if="usesUpdateRoute"
+        :model-value="Boolean(updateValue)"
+        :disabled="updateIsDisabled"
+        :aria-label="label || name"
+        :aria-busy="updateIsSaving"
+        :class="updateIsSaving ? 'opacity-60 cursor-wait' : undefined"
+        @update:model-value="(checked: boolean) => update.save(checked)"
+      />
+      <Switch
+        v-else
+        :aria-label="label || name"
+        :aria-busy="isUpdating"
         :model-value="isChecked"
         :disabled="disabled || !editable || isUpdating || !executionUrl"
         :class="[

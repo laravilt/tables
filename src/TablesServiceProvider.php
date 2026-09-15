@@ -32,6 +32,11 @@ class TablesServiceProvider extends ServiceProvider
         // Load web routes
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
 
+        // Inline column update endpoint: registered per panel once every panel has been registered
+        if (! $this->app->routesAreCached()) {
+            $this->app->booted(fn () => Http\ColumnStateRoutes::register());
+        }
+
         if ($this->app->runningInConsole()) {
             // Publish config
             $this->publishes([

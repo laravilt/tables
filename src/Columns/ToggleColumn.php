@@ -3,8 +3,9 @@
 namespace Laravilt\Tables\Columns;
 
 use Closure;
+use Laravilt\Tables\Columns\Contracts\EditableColumn;
 
-class ToggleColumn extends Column
+class ToggleColumn extends Column implements EditableColumn
 {
     protected ?Closure $beforeStateUpdated = null;
 
@@ -31,6 +32,21 @@ class ToggleColumn extends Column
         $this->rules = $rules;
 
         return $this;
+    }
+
+    public function getRules(): array
+    {
+        return $this->rules;
+    }
+
+    public function getStateValidationRules(): array
+    {
+        return ['required', 'boolean', ...$this->rules];
+    }
+
+    public function dehydrateState(mixed $state): mixed
+    {
+        return filter_var($state, FILTER_VALIDATE_BOOLEAN);
     }
 
     public function getBeforeStateUpdated(): ?Closure

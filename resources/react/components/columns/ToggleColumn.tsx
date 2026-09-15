@@ -4,13 +4,18 @@ import { router } from '@inertiajs/react';
 import { useNotification } from '@laravilt/notifications/composables/useNotification';
 import { useLocalization } from '@laravilt/support/composables/useLocalization';
 import { useEffect, useState } from 'react';
+import { useColumnUpdate } from '../../composables/useColumnUpdate';
 import { useStateRef } from '../../composables/useStateRef';
 
 export interface ToggleColumnProps {
     value: any;
     name: string;
+    label?: string | null;
     recordId: number | string;
     resourceSlug?: string;
+    /** Authorized, validated column update endpoint (preferred when present) */
+    columnUpdateRoute?: string | null;
+    /** Legacy panel endpoint, still used by relation manager tables */
     columnExecutionRoute?: string;
     editable?: boolean;
     disabled?: boolean;
@@ -26,7 +31,9 @@ export interface ToggleColumnProps {
 export default function ToggleColumn({
     value,
     name,
+    label = null,
     recordId,
+    columnUpdateRoute = null,
     columnExecutionRoute,
     editable = true,
     disabled = false,
@@ -39,6 +46,10 @@ export default function ToggleColumn({
 }: ToggleColumnProps) {
     const { trans } = useLocalization();
     const { notify } = useNotification();
+
+    // Optimistic save through the column update endpoint (reverts on failure)
+    const update = useColumnUpdate<boolean>(Boolean(value), { name, recordId, columnUpdateRoute, editable, disabled });
+    const usesUpdateRoute = Boolean(columnUpdateRoute);
 
     // Compute the execution URL - replace __ID__ placeholder with actual record ID
     const executionUrl = columnExecutionRoute ? columnExecutionRoute.replace('__ID__', String(recordId)) : null;
@@ -112,12 +123,25 @@ export default function ToggleColumn({
 
             {/* Main content */}
             <div className="flex items-center">
-                <Switch
-                    checked={localValue}
-                    disabled={disabled || !editable || isUpdating || !executionUrl}
-                    className={cn(isUpdating && 'opacity-60 cursor-wait', !executionUrl && 'opacity-50 cursor-not-allowed')}
-                    onCheckedChange={(checked: boolean) => setChecked(checked)}
-                />
+                {usesUpdateRoute ? (
+                    <Switch
+                        checked={Boolean(update.localValue)}
+                        disabled={update.isDisabled}
+                        aria-label={label || name}
+                        aria-busy={update.isSaving}
+                        className={cn(update.isSaving && 'opacity-60 cursor-wait')}
+                        onCheckedChange={(checked: boolean) => void update.save(checked)}
+                    />
+                ) : (
+                    <Switch
+                        checked={localValue}
+                        disabled={disabled || !editable || isUpdating || !executionUrl}
+                        aria-label={label || name}
+                        aria-busy={isUpdating}
+                        className={cn(isUpdating && 'opacity-60 cursor-wait', !executionUrl && 'opacity-50 cursor-not-allowed')}
+                        onCheckedChange={(checked: boolean) => setChecked(checked)}
+                    />
+                )}
             </div>
 
             {/* Description below */}

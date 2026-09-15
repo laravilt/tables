@@ -143,9 +143,12 @@ export default function ImageGridColumn({
 
     const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
         const imgElement = event.currentTarget;
-        // Only fall back once: if the default image itself fails, stop (prevents an error/reload loop)
-        if (defaultImageUrl && imgElement.getAttribute('src') !== defaultImageUrl) {
-            imgElement.src = defaultImageUrl;
+        if (!defaultImageUrl) return;
+        // Resolve the fallback the same way as the rendered src, then compare normalized URLs:
+        // only fall back once, so a failing default image can't cause an error/reload loop
+        const fallbackUrl = getImageUrl(defaultImageUrl);
+        if (imgElement.getAttribute('src') !== fallbackUrl) {
+            imgElement.src = fallbackUrl;
         }
     };
 

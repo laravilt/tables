@@ -6,6 +6,9 @@ import IconColumn from './columns/IconColumn.vue'
 import ImageColumn from './columns/ImageColumn.vue'
 import ColorColumn from './columns/ColorColumn.vue'
 import ToggleColumn from './columns/ToggleColumn.vue'
+import SelectColumn from './columns/SelectColumn.vue'
+import TextInputColumn from './columns/TextInputColumn.vue'
+import CheckboxColumn from './columns/CheckboxColumn.vue'
 import RecordActions from '@laravilt/actions/components/RecordActions.vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -64,6 +67,7 @@ interface DataTableProps {
   bulkActionsAvailable?: boolean
   resourceSlug?: string
   columnExecutionRoute?: string
+  columnUpdateRoute?: string | null
   modelClass?: string
   recordActions?: Action[]
   executionRoute?: string
@@ -90,6 +94,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   bulkActionsAvailable: false,
   resourceSlug: '',
   columnExecutionRoute: undefined,
+  columnUpdateRoute: null,
   modelClass: undefined,
   recordActions: () => [],
   executionRoute: undefined,
@@ -191,7 +196,7 @@ const saveReorder = async (items: { id: number | string, order: number }[]) => {
   isReordering.value = true
   try {
     const url = props.reorderRoute || `/admin/${props.resourceSlug}/reorder`
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -204,6 +209,11 @@ const saveReorder = async (items: { id: number | string, order: number }[]) => {
         column: props.reorderableColumn,
       }),
     })
+
+    // fetch only rejects on network failure; treat 4xx/5xx as a failed save too
+    if (!response.ok) {
+      throw new Error(`Reorder request failed with status ${response.status}`)
+    }
   } catch (error) {
     console.error('Failed to save reorder:', error)
     // Revert to original order on error
@@ -389,6 +399,12 @@ const getColumnComponent = (columnType: string) => {
       return ColorColumn
     case 'ToggleColumn':
       return ToggleColumn
+    case 'SelectColumn':
+      return SelectColumn
+    case 'TextInputColumn':
+      return TextInputColumn
+    case 'CheckboxColumn':
+      return CheckboxColumn
     default:
       return TextColumn
   }
@@ -548,6 +564,9 @@ const getColumnWidthClass = (column: Column, index: number): string => {
             :key="`skeleton-${i}`"
             :class="[striped && i % 2 !== 0 ? 'bg-muted' : 'bg-card']"
           >
+            <!-- Drag Handle Skeleton (keeps cells aligned with the reorder header) -->
+            <td v-if="reorderable" class="w-[40px] px-2 py-3.5" />
+
             <!-- Checkbox Skeleton -->
             <td v-if="bulkActionsAvailable" class="px-3 py-3.5 w-[52px]">
               <Skeleton class="h-4 w-4 rounded" />
@@ -642,6 +661,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 :record-id="record.id"
                 :resource-slug="resourceSlug"
                 :column-execution-route="columnExecutionRoute"
+                :column-update-route="columnUpdateRoute"
                 v-bind="column"
                 :default-image-url="record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl"
               />

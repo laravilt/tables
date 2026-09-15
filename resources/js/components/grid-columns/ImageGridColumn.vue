@@ -45,7 +45,8 @@ const props = withDefaults(defineProps<ImageGridColumnProps>(), {
 })
 
 const images = computed(() => {
-  if (!props.value) return []
+  // Show default image if no value but defaultImageUrl is set
+  if (!props.value) return props.defaultImageUrl ? [props.defaultImageUrl] : []
   return Array.isArray(props.value) ? props.value : [props.value]
 })
 
@@ -144,8 +145,13 @@ const getImageUrl = (image: string): string => {
 }
 
 const handleImageError = (event: Event) => {
-  if (props.defaultImageUrl) {
-    (event.target as HTMLImageElement).src = props.defaultImageUrl
+  const imgElement = event.target as HTMLImageElement
+  if (!props.defaultImageUrl) return
+  // Resolve the fallback the same way as the rendered src, then compare normalized URLs:
+  // only fall back once, so a failing default image can't cause an error/reload loop
+  const fallbackUrl = getImageUrl(props.defaultImageUrl)
+  if (imgElement.getAttribute('src') !== fallbackUrl) {
+    imgElement.src = fallbackUrl
   }
 }
 </script>
