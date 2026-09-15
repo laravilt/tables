@@ -11,6 +11,9 @@ import ColorColumn from './columns/ColorColumn';
 import IconColumn from './columns/IconColumn';
 import ImageColumn from './columns/ImageColumn';
 import TextColumn from './columns/TextColumn';
+import CheckboxColumn from './columns/CheckboxColumn';
+import SelectColumn from './columns/SelectColumn';
+import TextInputColumn from './columns/TextInputColumn';
 import ToggleColumn from './columns/ToggleColumn';
 import './DataTable.css';
 
@@ -63,6 +66,7 @@ export interface DataTableProps {
     bulkActionsAvailable?: boolean;
     resourceSlug?: string;
     columnExecutionRoute?: string;
+    columnUpdateRoute?: string | null;
     modelClass?: string;
     recordActions?: Action[];
     executionRoute?: string;
@@ -128,6 +132,7 @@ export default function DataTable({
     bulkActionsAvailable = false,
     resourceSlug = '',
     columnExecutionRoute,
+    columnUpdateRoute = null,
     modelClass,
     executionRoute,
     clearSelections = 0,
@@ -405,6 +410,12 @@ export default function DataTable({
                 return ColorColumn;
             case 'ToggleColumn':
                 return ToggleColumn;
+            case 'SelectColumn':
+                return SelectColumn;
+            case 'TextInputColumn':
+                return TextInputColumn;
+            case 'CheckboxColumn':
+                return CheckboxColumn;
             default:
                 return TextColumn;
         }
@@ -662,6 +673,7 @@ export default function DataTable({
                                                         recordId={record.id}
                                                         resourceSlug={resourceSlug}
                                                         columnExecutionRoute={columnExecutionRoute}
+                                                        columnUpdateRoute={columnUpdateRoute}
                                                         {...column}
                                                         defaultImageUrl={record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl}
                                                     />

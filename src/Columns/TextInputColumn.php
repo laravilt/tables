@@ -3,8 +3,9 @@
 namespace Laravilt\Tables\Columns;
 
 use Closure;
+use Laravilt\Tables\Columns\Contracts\EditableColumn;
 
-class TextInputColumn extends Column
+class TextInputColumn extends Column implements EditableColumn
 {
     protected ?Closure $beforeStateUpdated = null;
 
@@ -94,6 +95,30 @@ class TextInputColumn extends Column
         $this->inputSuffixIconColor = $color;
 
         return $this;
+    }
+
+    public function getRules(): array
+    {
+        return $this->rules;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function getStateValidationRules(): array
+    {
+        return [
+            'nullable',
+            $this->type === 'number' ? 'numeric' : 'string',
+            ...$this->rules,
+        ];
+    }
+
+    public function dehydrateState(mixed $state): mixed
+    {
+        return $state === '' ? null : $state;
     }
 
     public function getBeforeStateUpdated(): ?Closure

@@ -3,8 +3,10 @@
 namespace Laravilt\Tables\Columns;
 
 use Closure;
+use Illuminate\Validation\Rule;
+use Laravilt\Tables\Columns\Contracts\EditableColumn;
 
-class SelectColumn extends Column
+class SelectColumn extends Column implements EditableColumn
 {
     protected array|Closure $options = [];
 
@@ -87,6 +89,25 @@ class SelectColumn extends Column
         return $this->options;
     }
 
+    public function getRules(): array
+    {
+        return $this->rules;
+    }
+
+    public function getStateValidationRules(): array
+    {
+        return [
+            $this->selectablePlaceholder ? 'nullable' : 'required',
+            Rule::in(array_map('strval', array_keys($this->getOptions()))),
+            ...$this->rules,
+        ];
+    }
+
+    public function dehydrateState(mixed $state): mixed
+    {
+        return $state === '' ? null : $state;
+    }
+
     public function getBeforeStateUpdated(): ?Closure
     {
         return $this->beforeStateUpdated;
@@ -111,6 +132,7 @@ class SelectColumn extends Column
             'native' => $this->native,
             'optionsSearchable' => $this->optionsSearchable,
             'selectablePlaceholder' => $this->selectablePlaceholder,
+            'editable' => true,
         ];
     }
 

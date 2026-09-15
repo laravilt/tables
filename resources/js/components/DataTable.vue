@@ -6,6 +6,9 @@ import IconColumn from './columns/IconColumn.vue'
 import ImageColumn from './columns/ImageColumn.vue'
 import ColorColumn from './columns/ColorColumn.vue'
 import ToggleColumn from './columns/ToggleColumn.vue'
+import SelectColumn from './columns/SelectColumn.vue'
+import TextInputColumn from './columns/TextInputColumn.vue'
+import CheckboxColumn from './columns/CheckboxColumn.vue'
 import RecordActions from '@laravilt/actions/components/RecordActions.vue'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -64,6 +67,7 @@ interface DataTableProps {
   bulkActionsAvailable?: boolean
   resourceSlug?: string
   columnExecutionRoute?: string
+  columnUpdateRoute?: string | null
   modelClass?: string
   recordActions?: Action[]
   executionRoute?: string
@@ -90,6 +94,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   bulkActionsAvailable: false,
   resourceSlug: '',
   columnExecutionRoute: undefined,
+  columnUpdateRoute: null,
   modelClass: undefined,
   recordActions: () => [],
   executionRoute: undefined,
@@ -394,6 +399,12 @@ const getColumnComponent = (columnType: string) => {
       return ColorColumn
     case 'ToggleColumn':
       return ToggleColumn
+    case 'SelectColumn':
+      return SelectColumn
+    case 'TextInputColumn':
+      return TextInputColumn
+    case 'CheckboxColumn':
+      return CheckboxColumn
     default:
       return TextColumn
   }
@@ -650,6 +661,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 :record-id="record.id"
                 :resource-slug="resourceSlug"
                 :column-execution-route="columnExecutionRoute"
+                :column-update-route="columnUpdateRoute"
                 v-bind="column"
                 :default-image-url="record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl"
               />

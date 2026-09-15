@@ -886,6 +886,7 @@ export default function Table({
                             bulkActionsAvailable={extractedBulkActions.length > 0}
                             resourceSlug={resourceSlug}
                             columnExecutionRoute={relationContext?.columnExecutionRoute || table.columnExecutionRoute}
+                            columnUpdateRoute={relationContext ? null : table.columnUpdateRoute}
                             modelClass={table.model}
                             clearSelections={clearSelectionsKey}
                             fixedActions={table.fixedActions}

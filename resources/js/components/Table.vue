@@ -945,6 +945,7 @@ onUnmounted(() => {
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :resource-slug="resourceSlug"
                 :column-execution-route="relationContext?.columnExecutionRoute || table.columnExecutionRoute"
+                :column-update-route="relationContext ? null : table.columnUpdateRoute"
                 :model-class="table.model"
                 :clear-selections="clearSelectionsKey"
                 :fixed-actions="table.fixedActions"
