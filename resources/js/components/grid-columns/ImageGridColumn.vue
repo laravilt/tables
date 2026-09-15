@@ -146,9 +146,12 @@ const getImageUrl = (image: string): string => {
 
 const handleImageError = (event: Event) => {
   const imgElement = event.target as HTMLImageElement
-  // Only fall back once: if the default image itself fails, stop (prevents an error/reload loop)
-  if (props.defaultImageUrl && imgElement.getAttribute('src') !== props.defaultImageUrl) {
-    imgElement.src = props.defaultImageUrl
+  if (!props.defaultImageUrl) return
+  // Resolve the fallback the same way as the rendered src, then compare normalized URLs:
+  // only fall back once, so a failing default image can't cause an error/reload loop
+  const fallbackUrl = getImageUrl(props.defaultImageUrl)
+  if (imgElement.getAttribute('src') !== fallbackUrl) {
+    imgElement.src = fallbackUrl
   }
 }
 </script>

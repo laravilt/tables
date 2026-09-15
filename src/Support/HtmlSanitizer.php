@@ -22,6 +22,8 @@ class HtmlSanitizer
     protected const REMOVED_ELEMENTS = [
         'script', 'style', 'iframe', 'object', 'embed', 'applet', 'frame', 'frameset',
         'base', 'link', 'meta', 'noscript', 'template', 'form',
+        // SVG animation elements can animate href/xlink:href to a javascript: URL via values/to/from/by
+        'animate', 'set', 'animatemotion', 'animatetransform',
     ];
 
     /**

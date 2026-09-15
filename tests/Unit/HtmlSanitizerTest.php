@@ -32,6 +32,27 @@ it('strips self-closing embed and nested scripts', function () {
     expect($output)->toBe('<div><span>text</span></div>');
 });
 
+it('strips svg animation elements that can retarget href to javascript urls', function (string $html) {
+    $output = strtolower(HtmlSanitizer::sanitize($html));
+
+    expect($output)->not->toContain('javascript:')
+        ->and($output)->not->toContain('<animate')
+        ->and($output)->not->toContain('<set')
+        ->and($output)->toContain('<a');
+})->with([
+    'animate values' => ['<svg><a><animate attributeName="href" values="javascript:alert(1)"/><text x="20" y="20">click</text></a></svg>'],
+    'animate to' => ['<svg><a><animate attributeName="href" to="javascript:alert(1)"/><text>click</text></a></svg>'],
+    'set to' => ['<svg><a><set attributeName="href" to="javascript:alert(1)"/><text>click</text></a></svg>'],
+    'set xlink:href' => ['<svg><a xlink:href="#"><set attributeName="xlink:href" to="javascript:alert(1)"/><text>click</text></a></svg>'],
+]);
+
+it('strips all four svg animation elements', function (string $tag) {
+    $output = HtmlSanitizer::sanitize("<svg><circle r=\"5\"><{$tag} attributeName=\"r\" to=\"10\"></{$tag}></circle></svg>");
+
+    expect(strtolower($output))->not->toContain(strtolower($tag))
+        ->and($output)->toContain('<circle');
+})->with(['animate', 'set', 'animateMotion', 'animateTransform']);
+
 it('strips event handler attributes', function () {
     $output = HtmlSanitizer::sanitize('<img src="a.png" onerror="alert(1)" ONLOAD="x()"><b onclick="y()">b</b>');
 
