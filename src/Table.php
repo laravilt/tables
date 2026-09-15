@@ -1320,6 +1320,15 @@ class Table implements InertiaSerializable
                         $recordArray[$columnName] = $formattedValue;
                     }
                 }
+
+                // HTML columns are rendered with v-html / dangerouslySetInnerHTML: sanitize server-side
+                // so both frontends receive safe markup (runs after formatUsing, which may build HTML)
+                if ($column instanceof Columns\TextColumn && $column->isHtml()) {
+                    $htmlValue = $recordArray[$columnName] ?? $value;
+                    if (is_string($htmlValue)) {
+                        $recordArray[$columnName] = Support\HtmlSanitizer::sanitize($htmlValue);
+                    }
+                }
             }
 
             // Evaluate card badge color if card has badge color callback

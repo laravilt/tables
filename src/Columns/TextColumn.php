@@ -227,6 +227,11 @@ class TextColumn extends Column
         return $this;
     }
 
+    public function isHtml(): bool
+    {
+        return $this->html;
+    }
+
     public function separator(?string $separator = ','): static
     {
         $this->separator = $separator;

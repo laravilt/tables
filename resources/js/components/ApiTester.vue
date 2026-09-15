@@ -664,6 +664,17 @@ const exportOpenApiJson = () => {
     showExportMenu.value = false
 }
 
+// Quote strings that would break or be re-typed as plain YAML scalars (newlines, indicators, booleans, null,
+// numbers). JSON string syntax is a valid double-quoted YAML scalar and escapes newlines and quotes.
+const toYamlString = (value: string): string =>
+    value === '' ||
+    /[\n\r:#]/.test(value) ||
+    /^[\s\-?,[\]{}&*!|>'"%@`]|\s$/.test(value) ||
+    /^(?:true|false|yes|no|on|off|null|~)$/i.test(value) ||
+    !isNaN(Number(value))
+        ? JSON.stringify(value)
+        : value
+
 const toYaml = (obj: any, indent = 0): string => {
     const prefix = '  '.repeat(indent)
     let yaml = ''
@@ -675,11 +686,7 @@ const toYaml = (obj: any, indent = 0): string => {
         } else if (typeof value === 'number') {
             yaml += `${prefix}${key}: ${value}\n`
         } else if (typeof value === 'string') {
-            if (value.includes('\n') || value.includes(':') || value.includes('#')) {
-                yaml += `${prefix}${key}: "${value.replace(/"/g, '\\"')}"\n`
-            } else {
-                yaml += `${prefix}${key}: ${value}\n`
-            }
+            yaml += `${prefix}${key}: ${toYamlString(value)}\n`
         } else if (Array.isArray(value)) {
             if (value.length === 0) {
                 yaml += `${prefix}${key}: []\n`
@@ -690,7 +697,7 @@ const toYaml = (obj: any, indent = 0): string => {
                         const itemYaml = toYaml(item, indent + 2).trim()
                         yaml += `${prefix}- ${itemYaml.split('\n').join('\n' + prefix + '  ')}\n`
                     } else {
-                        yaml += `${prefix}- ${item}\n`
+                        yaml += `${prefix}- ${typeof item === 'string' ? toYamlString(item) : item}\n`
                     }
                 }
             }

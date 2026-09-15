@@ -64,9 +64,18 @@ const formattedValue = computed(() => {
     return ''
   }
 
-  // If it's an array, don't format it here - we'll render badges individually
-  if (isArray.value) {
+  // If it's an array for badges, don't format it here - we'll render badges individually
+  if (isArray.value && props.badge) {
     return ''
+  }
+
+  // If it's an object or array (not for badges), format as JSON (same as TextColumn)
+  if (typeof props.value === 'object' && !props.badge) {
+    try {
+      return JSON.stringify(props.value, null, 2)
+    } catch (e) {
+      return String(props.value)
+    }
   }
 
   let result = String(props.value)
@@ -75,25 +84,31 @@ const formattedValue = computed(() => {
   if (props.dateTimeFormat && props.value) {
     try {
       const date = new Date(props.value)
-      result = date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
+      // Check if date is valid
+      if (!isNaN(date.getTime())) {
+        result = date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      }
     } catch (e) {
       result = String(props.value)
     }
   } else if (props.dateFormat && props.value) {
     try {
       const date = new Date(props.value)
-      result = date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
+      // Check if date is valid
+      if (!isNaN(date.getTime())) {
+        result = date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+      }
     } catch (e) {
       result = String(props.value)
     }

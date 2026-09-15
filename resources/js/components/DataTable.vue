@@ -191,7 +191,7 @@ const saveReorder = async (items: { id: number | string, order: number }[]) => {
   isReordering.value = true
   try {
     const url = props.reorderRoute || `/admin/${props.resourceSlug}/reorder`
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -204,6 +204,11 @@ const saveReorder = async (items: { id: number | string, order: number }[]) => {
         column: props.reorderableColumn,
       }),
     })
+
+    // fetch only rejects on network failure; treat 4xx/5xx as a failed save too
+    if (!response.ok) {
+      throw new Error(`Reorder request failed with status ${response.status}`)
+    }
   } catch (error) {
     console.error('Failed to save reorder:', error)
     // Revert to original order on error
@@ -548,6 +553,9 @@ const getColumnWidthClass = (column: Column, index: number): string => {
             :key="`skeleton-${i}`"
             :class="[striped && i % 2 !== 0 ? 'bg-muted' : 'bg-card']"
           >
+            <!-- Drag Handle Skeleton (keeps cells aligned with the reorder header) -->
+            <td v-if="reorderable" class="w-[40px] px-2 py-3.5" />
+
             <!-- Checkbox Skeleton -->
             <td v-if="bulkActionsAvailable" class="px-3 py-3.5 w-[52px]">
               <Skeleton class="h-4 w-4 rounded" />
