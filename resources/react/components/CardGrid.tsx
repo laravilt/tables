@@ -201,14 +201,6 @@ const gridColsMap: Record<number, string> = {
     6: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
 };
 
-function SelectCheckmark() {
-    return (
-        <svg className="h-3.5 w-3.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-    );
-}
-
 function ProductSkeleton() {
     return (
         <>
@@ -455,7 +447,8 @@ export default function CardGrid({
 
     // Get avatar initials from title
     const getAvatarInitials = (record: any) => {
-        const title = getTitle(record);
+        // Normalize first: the configured title field may hold a number or object
+        const title = toDisplayString(getTitle(record));
         if (!title) return '?';
         const words = title.split(' ');
         if (words.length >= 2) {
@@ -518,21 +511,12 @@ export default function CardGrid({
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/50">
                         {/* Selection Checkbox */}
                         {bulkActionsAvailable && (
-                            <div
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    handleSelectRecord(record.id);
-                                }}
-                            >
-                                <div
-                                    className={cn(
-                                        'h-5 w-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200',
-                                        isSelected(record.id) ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary/60 bg-background',
-                                    )}
-                                >
-                                    {isSelected(record.id) && <SelectCheckmark />}
-                                </div>
-                            </div>
+                            <Checkbox
+                                checked={isSelected(record.id)}
+                                onCheckedChange={() => handleSelectRecord(record.id)}
+                                aria-label={`Select record #${toDisplayString(record.id)}`}
+                                className="size-5 rounded border-2 border-muted-foreground/40 bg-background cursor-pointer hover:border-primary/60"
+                            />
                         )}
                         {/* Record ID */}
                         <span className="text-xs font-mono text-muted-foreground/70 select-none">#{toDisplayString(record.id)}</span>
@@ -648,7 +632,7 @@ export default function CardGrid({
                         />
                     ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                            <span className="text-4xl font-bold text-primary/30">{title?.charAt(0) || '?'}</span>
+                            <span className="text-4xl font-bold text-primary/30">{toDisplayString(title).charAt(0) || '?'}</span>
                         </div>
                     )}
 
@@ -661,6 +645,7 @@ export default function CardGrid({
                             <Checkbox
                                 checked={isSelected(record.id)}
                                 onCheckedChange={() => handleSelectRecord(record.id)}
+                                aria-label={`Select record #${toDisplayString(record.id)}`}
                                 className="border-white/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                             />
                         </div>
@@ -725,20 +710,12 @@ export default function CardGrid({
                 {/* Selection Checkbox (floating) */}
                 {bulkActionsAvailable && (
                     <div className="absolute top-3 left-3 z-20">
-                        <div
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                handleSelectRecord(record.id);
-                            }}
-                            className={cn(
-                                'h-5 w-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm',
-                                isSelected(record.id)
-                                    ? 'bg-primary border-primary'
-                                    : 'border-white/80 hover:border-primary/60 bg-white/90 backdrop-blur-sm',
-                            )}
-                        >
-                            {isSelected(record.id) && <SelectCheckmark />}
-                        </div>
+                        <Checkbox
+                            checked={isSelected(record.id)}
+                            onCheckedChange={() => handleSelectRecord(record.id)}
+                            aria-label={`Select record #${toDisplayString(record.id)}`}
+                            className="size-5 rounded border-2 border-white/80 bg-white/90 backdrop-blur-sm shadow-sm cursor-pointer hover:border-primary/60"
+                        />
                     </div>
                 )}
 
@@ -881,7 +858,12 @@ export default function CardGrid({
                 {(bulkActionsAvailable || title) && (
                     <CardHeader className="flex-row items-start gap-3 space-y-0 pb-3">
                         {bulkActionsAvailable && (
-                            <Checkbox checked={isSelected(record.id)} onCheckedChange={() => handleSelectRecord(record.id)} className="mt-1" />
+                            <Checkbox
+                                checked={isSelected(record.id)}
+                                onCheckedChange={() => handleSelectRecord(record.id)}
+                                aria-label={`Select record #${toDisplayString(record.id)}`}
+                                className="mt-1"
+                            />
                         )}
                         <div className="flex-1 min-w-0">
                             {title ? (
@@ -903,10 +885,14 @@ export default function CardGrid({
                         const ColumnComponent = getColumnComponent(column.component);
 
                         return (
+                            // Spread the column config (limit, wrap, badge, imageWidth, editable, name, ...) first,
+                            // then override the record-specific values
                             <ColumnComponent
                                 key={column.name}
+                                {...column}
                                 column={column}
                                 record={record}
+                                recordId={record.id}
                                 value={record[column.name]}
                                 color={record._colors?.[column.name]}
                                 icon={record._icons?.[column.name]}

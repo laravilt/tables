@@ -252,13 +252,9 @@ export default function Table({
               [12, 24, 48, 96];
 
     // Records: append or replace based on infinite scroll.
-    // Initial value reproduces Vue's immediate watcher run during setup.
-    const [allRecords, setAllRecords, allRecordsRef] = useStateRef<any[]>(() => {
-        if (table.infiniteScroll && !(table.activeGroup || table.defaultGroup) && pagination.current_page !== 1 && pagination.current_page > 1) {
-            return [...records, ...records];
-        }
-        return records;
-    });
+    // Seed with the initial records; the watcher below handles appends. (Vue's immediate watcher appended the
+    // initial page to itself on deep links to page > 1, duplicating every record — not ported.)
+    const [allRecords, setAllRecords, allRecordsRef] = useStateRef<any[]>(records);
 
     useWatch(records, (newRecords) => {
         if (isInfiniteScrollActiveNow()) {
@@ -592,11 +588,10 @@ export default function Table({
             urlParams.delete('group');
         }
 
-        // If using AJAX mode, reload data
+        // If using AJAX mode, reload data (reloadData() sends the new group from activeGroupRef).
+        // Vue calls an undefined `updateUrl()` first, which throws before reloading; AJAX mode keeps state out of the URL.
         if (useAjax) {
-            // Vue calls an undefined `updateUrl({ group })` here, which throws a ReferenceError
-            // before reloadData() runs (and before the observer re-setup below). Ported as-is.
-            throw new ReferenceError('updateUrl is not defined');
+            reloadData();
         } else {
             // For Inertia, do a full navigation
             const currentUrl = new URL(window.location.href);

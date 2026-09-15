@@ -72,9 +72,18 @@ export default function TextGridColumn({
             return '';
         }
 
-        // If it's an array, don't format it here - we'll render badges individually
-        if (isArray) {
+        // If it's an array for badges, don't format it here - we'll render badges individually
+        if (isArray && badge) {
             return '';
+        }
+
+        // If it's an object or array (not for badges), format as JSON (same as TextColumn)
+        if (typeof value === 'object' && !badge) {
+            try {
+                return JSON.stringify(value, null, 2);
+            } catch {
+                return String(value);
+            }
         }
 
         let result = String(value);
@@ -83,25 +92,31 @@ export default function TextGridColumn({
         if (dateTimeFormat && value) {
             try {
                 const date = new Date(value);
-                result = date.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                });
+                // Check if date is valid
+                if (!isNaN(date.getTime())) {
+                    result = date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                    });
+                }
             } catch {
                 result = String(value);
             }
         } else if (dateFormat && value) {
             try {
                 const date = new Date(value);
-                result = date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                });
+                // Check if date is valid
+                if (!isNaN(date.getTime())) {
+                    result = date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                    });
+                }
             } catch {
                 result = String(value);
             }

@@ -191,7 +191,7 @@ export default function DataTable({
         setIsReordering(true);
         try {
             const url = reorderRoute || `/admin/${resourceSlug}/reorder`;
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -204,6 +204,11 @@ export default function DataTable({
                     column: reorderableColumn,
                 }),
             });
+
+            // fetch only rejects on network failure; treat 4xx/5xx as a failed save too
+            if (!response.ok) {
+                throw new Error(`Reorder request failed with status ${response.status}`);
+            }
         } catch (error) {
             console.error('Failed to save reorder:', error);
             // Revert to original order on error
@@ -557,6 +562,9 @@ export default function DataTable({
                             ? // Loading State
                               skeletonIndexes.map((i) => (
                                   <tr key={`skeleton-${i}`} className={cn(striped && i % 2 !== 0 ? 'bg-muted' : 'bg-card')}>
+                                      {/* Drag Handle Skeleton (keeps cells aligned with the reorder header) */}
+                                      {reorderable && <td className="w-[40px] px-2 py-3.5" />}
+
                                       {/* Checkbox Skeleton */}
                                       {bulkActionsAvailable && (
                                           <td className="px-3 py-3.5 w-[52px]">

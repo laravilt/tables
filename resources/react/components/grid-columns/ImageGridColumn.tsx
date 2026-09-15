@@ -91,7 +91,14 @@ export default function ImageGridColumn({
     description = null,
     descriptionPosition = 'below',
 }: ImageGridColumnProps) {
-    const images: any[] = !value ? [] : Array.isArray(value) ? value : [value];
+    const images: any[] = !value
+        ? // Show default image if no value but defaultImageUrl is set
+          defaultImageUrl
+            ? [defaultImageUrl]
+            : []
+        : Array.isArray(value)
+          ? value
+          : [value];
 
     const displayImages = !limit ? images : images.slice(0, limit);
 
@@ -135,8 +142,10 @@ export default function ImageGridColumn({
     };
 
     const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
-        if (defaultImageUrl) {
-            event.currentTarget.src = defaultImageUrl;
+        const imgElement = event.currentTarget;
+        // Only fall back once: if the default image itself fails, stop (prevents an error/reload loop)
+        if (defaultImageUrl && imgElement.getAttribute('src') !== defaultImageUrl) {
+            imgElement.src = defaultImageUrl;
         }
     };
 
