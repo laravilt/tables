@@ -1374,10 +1374,16 @@ class Table implements InertiaSerializable
 
             // Keep the original state of attributes a column replaced with a display value
             // (getStateUsing, formatStateUsing, sanitized HTML), so modal forms and infolists
-            // opened from the row are filled with the real value instead of the formatted one
+            // opened from the row are filled with the real value instead of the formatted one.
+            // Only attributes already in toArray() are considered, so $hidden ones never leak.
+            // HTML columns are skipped: the raw markup must not reach the browser unsanitized.
             $recordArray['_original'] = [];
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
+
+                if ($column instanceof Columns\TextColumn && $column->isHtml()) {
+                    continue;
+                }
 
                 if (array_key_exists($columnName, $originalArray) && $originalArray[$columnName] !== $recordArray[$columnName]) {
                     $recordArray['_original'][$columnName] = $originalArray[$columnName];
