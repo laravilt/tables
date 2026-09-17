@@ -215,7 +215,13 @@ export default function Table({
     }, [relationContext, records, recordActions]);
 
     // Column visibility persistence
-    const getColumnStorageKey = () => `laravilt_columns_${resourceSlug || 'default'}`;
+    // Relation manager tables share the owner resource's slug, so scope their key by
+    // relationship to keep them from overwriting the owner's (and each other's) preferences.
+    const getColumnStorageKey = () => {
+        const key = `laravilt_columns_${resourceSlug || 'default'}`;
+
+        return relationContext?.relationship ? `${key}_${relationContext.relationship}` : key;
+    };
 
     const getSavedColumns = (): string[] | null => {
         if (typeof window === 'undefined') return null;
@@ -241,7 +247,10 @@ export default function Table({
 
     // Initialize visible columns - load from localStorage or use defaults
     const [visibleColumns, setVisibleColumnsState] = useState<string[]>(() => {
-        const saved = getSavedColumns();
+        // Ignore saved names this table doesn't have (renamed/removed columns, stale keys)
+        const saved = getSavedColumns()?.filter((name: string) =>
+            table.columns?.some((col: any) => col.name === name),
+        );
         if (saved && saved.length > 0) {
             return saved;
         }
