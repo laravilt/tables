@@ -210,8 +210,14 @@ const handleActionComplete = (data?: any) => {
 }
 
 // Column visibility persistence
+// Relation manager tables share the owner resource's slug, so scope their key by
+// relationship to keep them from overwriting the owner's (and each other's) preferences.
 const getColumnStorageKey = () => {
-    return `laravilt_columns_${props.resourceSlug || 'default'}`
+    const key = `laravilt_columns_${props.resourceSlug || 'default'}`
+
+    return props.relationContext?.relationship
+        ? `${key}_${props.relationContext.relationship}`
+        : key
 }
 
 const getSavedColumns = (): string[] | null => {
@@ -238,7 +244,10 @@ const saveColumnPreferences = (columns: string[]) => {
 
 // Initialize visible columns - load from localStorage or use defaults
 const initVisibleColumns = (): string[] => {
-    const saved = getSavedColumns()
+    // Ignore saved names this table doesn't have (renamed/removed columns, stale keys)
+    const saved = getSavedColumns()?.filter((name: string) =>
+        props.table.columns?.some((col: any) => col.name === name)
+    )
     if (saved && saved.length > 0) {
         return saved
     }
