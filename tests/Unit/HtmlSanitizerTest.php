@@ -24,7 +24,17 @@ it('strips dangerous elements with their content', function (string $tag) {
 
     expect($output)->toBe('<p>ok</p>')
         ->and(strtolower($output))->not->toContain($tag);
-})->with(['script', 'style', 'iframe', 'object', 'embed']);
+})->with(['script', 'style', 'iframe', 'object']);
+
+it('strips embed, which is a void element without content', function () {
+    $output = HtmlSanitizer::sanitize('<p>ok</p><embed src="x.swf">alert(1)</embed>');
+
+    // <embed> cannot have children: HTML5 parsers (browsers, libxml >= 2.14) keep what follows it
+    // as plain, inert text, while older libxml versions parsed it as content of the element
+    expect($output)->toBeIn(['<p>ok</p>alert(1)', '<p>ok</p>'])
+        ->and(strtolower($output))->not->toContain('embed')
+        ->and($output)->not->toContain('x.swf');
+});
 
 it('strips self-closing embed and nested scripts', function () {
     $output = HtmlSanitizer::sanitize('<div><span><script>alert(1)</script>text</span><embed src="x.swf"></div>');
