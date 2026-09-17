@@ -16,6 +16,7 @@ interface TextGridColumnProps {
   badge?: boolean
   dateTimeFormat?: string | null
   dateFormat?: string | null
+  formattedState?: string | null
   icon?: string | null
   weight?: string | null
   moneyFormat?: { currency: string; divideBy: number } | null
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<TextGridColumnProps>(), {
   badge: false,
   dateTimeFormat: null,
   dateFormat: null,
+  formattedState: null,
   icon: null,
   weight: null,
   moneyFormat: null,
@@ -81,7 +83,11 @@ const formattedValue = computed(() => {
   let result = String(props.value)
 
   // Format as date/datetime
-  if (props.dateTimeFormat && props.value) {
+  // Dates are formatted server-side (PHP format, app timezone and locale). The
+  // client-side branches are only a fallback for records without a formatted state.
+  if (props.formattedState !== null && props.formattedState !== undefined) {
+    result = props.formattedState
+  } else if (props.dateTimeFormat && props.value) {
     try {
       const date = new Date(props.value)
       // Check if date is valid

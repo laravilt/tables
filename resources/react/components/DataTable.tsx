@@ -670,6 +670,7 @@ export default function DataTable({
                                                         icon={record._icons?.[column.name]}
                                                         size={record._sizes?.[column.name]}
                                                         description={record._descriptions?.[column.name]}
+                                                        formattedState={record._formatted?.[column.name]}
                                                         recordId={record.id}
                                                         resourceSlug={resourceSlug}
                                                         columnExecutionRoute={columnExecutionRoute}

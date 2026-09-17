@@ -3,6 +3,8 @@
 namespace Laravilt\Tables\Columns;
 
 use Closure;
+use DateTimeInterface;
+use Illuminate\Support\Carbon;
 
 class TextColumn extends Column
 {
@@ -155,6 +157,45 @@ class TextColumn extends Column
         $this->since = $condition;
 
         return $this;
+    }
+
+    public function hasDateFormatting(): bool
+    {
+        return $this->since || $this->dateFormat !== null || $this->dateTimeFormat !== null;
+    }
+
+    /**
+     * Format a date state with the PHP format given to date() / dateTime(), or as a
+     * relative time for since(). Runs server-side so every PHP format character, the
+     * app timezone and the app locale are honored. Returns null when the state is
+     * not a date or the column has no date formatting.
+     */
+    public function formatDateState(mixed $state): ?string
+    {
+        if (! $this->hasDateFormatting() || $state === null || $state === '') {
+            return null;
+        }
+
+        try {
+            $date = match (true) {
+                $state instanceof DateTimeInterface => Carbon::instance($state),
+                is_numeric($state) => Carbon::createFromTimestamp((int) $state, config('app.timezone')),
+                is_string($state) => Carbon::parse($state)->setTimezone(config('app.timezone')),
+                default => null,
+            };
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($date === null) {
+            return null;
+        }
+
+        if ($this->since) {
+            return $date->diffForHumans();
+        }
+
+        return $date->translatedFormat($this->dateTimeFormat ?? $this->dateFormat);
     }
 
     public function money(string $currency = 'USD', int $divideBy = 1): static
