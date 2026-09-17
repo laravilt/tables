@@ -1284,6 +1284,9 @@ class Table implements InertiaSerializable
             $recordArray['_defaultImageUrls'] = [];
             $recordArray['_formatted'] = [];
 
+            // Snapshot of the attributes before columns overwrite them with display values
+            $originalArray = $recordArray;
+
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
 
@@ -1366,6 +1369,24 @@ class Table implements InertiaSerializable
                     if (is_string($htmlValue)) {
                         $recordArray[$columnName] = Support\HtmlSanitizer::sanitize($htmlValue);
                     }
+                }
+            }
+
+            // Keep the original state of attributes a column replaced with a display value
+            // (getStateUsing, formatStateUsing, sanitized HTML), so modal forms and infolists
+            // opened from the row are filled with the real value instead of the formatted one.
+            // Only attributes already in toArray() are considered, so $hidden ones never leak.
+            // HTML columns are skipped: the raw markup must not reach the browser unsanitized.
+            $recordArray['_original'] = [];
+            foreach ($this->columns as $column) {
+                $columnName = $column->getName();
+
+                if ($column instanceof Columns\TextColumn && $column->isHtml()) {
+                    continue;
+                }
+
+                if (array_key_exists($columnName, $originalArray) && $originalArray[$columnName] !== $recordArray[$columnName]) {
+                    $recordArray['_original'][$columnName] = $originalArray[$columnName];
                 }
             }
 

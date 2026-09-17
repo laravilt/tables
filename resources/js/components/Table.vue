@@ -138,6 +138,20 @@ const currentPage = ref<number>(props.pagination.current_page || 1)
 const isLoadingMore = ref<boolean>(false)
 const isInitialized = ref<boolean>(false)
 
+// Columns may replace an attribute with its display value (formatStateUsing etc.);
+// the server keeps the real value in `_original`, which is what forms must be filled with
+const getRecordFormData = (record: any) => {
+    return record?._original ? { ...record, ...record._original } : record
+}
+
+// Actions serialize an empty `modalFormData` when they have no fillForm(); it would win over
+// externalFormData and open an empty form. Keep the action's own data when it has any.
+const getActionModalFormData = (action: any, record: any) => {
+    return action?.modalFormData && Object.keys(action.modalFormData).length > 0
+        ? action.modalFormData
+        : getRecordFormData(record)
+}
+
 // Enhance records with actions for relation manager context
 const enhancedRecords = computed(() => {
     // If we have relation context, add _actions to each record with proper URLs
@@ -150,7 +164,8 @@ const enhancedRecords = computed(() => {
             if (viewAction) {
                 actions.push({
                     ...viewAction,
-                    externalFormData: record, // Pass record data to populate form
+                    externalFormData: getRecordFormData(record), // Pass record data to populate form
+                    modalFormData: getActionModalFormData(viewAction, record),
                     // No URL or method - view is display only
                 })
             }
@@ -162,7 +177,8 @@ const enhancedRecords = computed(() => {
                     actions.push({
                         ...editAction,
                         url: `${props.relationContext!.baseUrl}/${record.id}`,
-                        externalFormData: record, // Pass record data to populate form
+                        externalFormData: getRecordFormData(record), // Pass record data to populate form
+                        modalFormData: getActionModalFormData(editAction, record),
                     })
                 }
             }
