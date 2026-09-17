@@ -658,6 +658,7 @@ const getColumnWidthClass = (column: Column, index: number): string => {
                 :icon="record._icons?.[column.name]"
                 :size="record._sizes?.[column.name]"
                 :description="record._descriptions?.[column.name]"
+                :formatted-state="record._formatted?.[column.name]"
                 :record-id="record.id"
                 :resource-slug="resourceSlug"
                 :column-execution-route="columnExecutionRoute"

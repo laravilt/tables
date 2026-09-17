@@ -1282,6 +1282,7 @@ class Table implements InertiaSerializable
             $recordArray['_sizes'] = [];
             $recordArray['_descriptions'] = [];
             $recordArray['_defaultImageUrls'] = [];
+            $recordArray['_formatted'] = [];
 
             foreach ($this->columns as $column) {
                 $columnName = $column->getName();
@@ -1332,6 +1333,21 @@ class Table implements InertiaSerializable
                     $defaultImageUrl = $column->evaluateDefaultImageUrl($value, $record);
                     if ($defaultImageUrl !== null) {
                         $recordArray['_defaultImageUrls'][$columnName] = $defaultImageUrl;
+                    }
+                }
+
+                // Format date()/dateTime()/since() columns server-side. The raw attribute is left
+                // untouched (forms are filled from it); the display value goes to _formatted.
+                // A formatStateUsing callback takes precedence over the built-in date formatting.
+                if ($column instanceof Columns\TextColumn && $column->hasDateFormatting() && ! $column->hasFormatUsing()) {
+                    // Prefer the model attribute: a cast date is already in the app timezone
+                    $dateState = ! $column->hasGetStateUsing() && is_object($record)
+                        ? (data_get($record, $columnName) ?? $value)
+                        : $value;
+
+                    $formattedDate = $column->formatDateState($dateState);
+                    if ($formattedDate !== null) {
+                        $recordArray['_formatted'][$columnName] = $formattedDate;
                     }
                 }
 

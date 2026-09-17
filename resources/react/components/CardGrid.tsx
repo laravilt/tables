@@ -898,6 +898,7 @@ export default function CardGrid({
                                 icon={record._icons?.[column.name]}
                                 size={record._sizes?.[column.name]}
                                 description={record._descriptions?.[column.name]}
+                                formattedState={record._formatted?.[column.name]}
                                 defaultImageUrl={record._defaultImageUrls?.[column.name] ?? column.defaultImageUrl}
                                 resourceSlug={resourceSlug}
                             />
