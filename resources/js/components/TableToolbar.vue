@@ -16,7 +16,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import { countActiveFilters, isEmptyFilterValue, summarizeFilterValue } from '../composables/filterState'
 import { useLocalization } from '@/composables/useLocalization'
 
 // Initialize localization
@@ -54,6 +62,7 @@ interface TableToolbarProps {
   filters?: Filter[]
   activeFilters?: Record<string, any>
   filterIndicators?: FilterIndicator[]
+  filtersLayout?: 'sidebar' | 'dropdown' | 'above_table'
   columns?: Column[]
   visibleColumns?: string[]
   bulkActionsAvailable?: boolean
@@ -72,6 +81,7 @@ const props = withDefaults(defineProps<TableToolbarProps>(), {
   filters: () => [],
   activeFilters: () => ({}),
   filterIndicators: () => [],
+  filtersLayout: 'sidebar',
   columns: () => [],
   visibleColumns: () => [],
   bulkActionsAvailable: false,
@@ -108,18 +118,17 @@ const toggleableColumns = computed(() =>
   props.columns.filter((col) => col.toggleable !== false)
 )
 
-const activeFilterCount = computed(() => {
-  return Object.values(props.activeFilters).filter(
-    (value) => value !== null && value !== '' && value !== undefined
-  ).length
-})
+const activeFilterCount = computed(() => countActiveFilters(props.activeFilters))
+
+// Open state of the sidebar (slide-over) filters layout
+const filtersOpen = ref(false)
 
 // Compute filter indicators from activeFilters instead of using the prop
 const computedFilterIndicators = computed(() => {
   const indicators: Array<{ label: string; removeField: string }> = []
 
   Object.entries(props.activeFilters).forEach(([filterName, value]) => {
-    if (value === null || value === '' || value === undefined || value === false) {
+    if (isEmptyFilterValue(value)) {
       return
     }
 
@@ -128,7 +137,7 @@ const computedFilterIndicators = computed(() => {
     if (!filter) return
 
     // Get the indicator label from the filter
-    let label = `${filter.label || filterName}: ${value}`
+    let label = `${filter.label || filterName}: ${summarizeFilterValue(value)}`
 
     // If filter has indicateUsing callback, use it
     if (filter.indicateUsing) {
@@ -292,10 +301,48 @@ const handleGroupChange = (groupColumn: string | null) => {
           </PopoverContent>
         </Popover>
 
-        <!-- Filters Button -->
-        <Popover v-if="filters.length > 0">
+        <!-- Filters: sidebar layout (default), a slide-over panel -->
+        <template v-if="filters.length > 0 && filtersLayout === 'sidebar'">
+          <Button
+            variant="outline"
+            size="sm"
+            class="gap-2 whitespace-nowrap"
+            :title="trans('tables::tables.toolbar.filters')"
+            data-filters-layout="sidebar"
+            @click="filtersOpen = true"
+          >
+            <SlidersHorizontal class="h-4 w-4" />
+            {{ trans('tables::tables.toolbar.filters') }}
+            <Badge v-if="activeFilterCount > 0" variant="secondary" class="ms-1 px-1.5">
+              {{ activeFilterCount }}
+            </Badge>
+          </Button>
+          <Sheet v-model:open="filtersOpen">
+            <SheetContent side="right" class="w-full overflow-y-auto sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>{{ trans('tables::tables.toolbar.filters') }}</SheetTitle>
+                <SheetDescription class="sr-only">{{ trans('tables::tables.toolbar.filters') }}</SheetDescription>
+              </SheetHeader>
+              <div class="space-y-4 px-4 pb-4">
+                <Button
+                  v-if="hasActiveFilters"
+                  variant="ghost"
+                  size="sm"
+                  @click="clearFilters"
+                  class="h-auto py-1 px-2 text-xs"
+                >
+                  {{ trans('tables::tables.toolbar.clear_all') }}
+                </Button>
+                <slot name="filters" layout="stacked" />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </template>
+
+        <!-- Filters: dropdown layout, a popover -->
+        <Popover v-else-if="filters.length > 0 && filtersLayout === 'dropdown'">
           <PopoverTrigger as-child>
-            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap" :title="trans('tables::tables.toolbar.filters')">
+            <Button variant="outline" size="sm" class="gap-2 whitespace-nowrap" :title="trans('tables::tables.toolbar.filters')" data-filters-layout="dropdown">
               <SlidersHorizontal class="h-4 w-4" />
               {{ trans('tables::tables.toolbar.filters') }}
               <Badge v-if="activeFilterCount > 0" variant="secondary" class="ms-1 px-1.5">
@@ -303,7 +350,7 @@ const handleGroupChange = (groupColumn: string | null) => {
               </Badge>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" class="w-[420px]">
+          <PopoverContent align="end" class="w-[420px] max-h-[70vh] overflow-y-auto">
             <div class="space-y-4">
               <div class="flex items-center justify-between">
                 <h4 class="text-sm font-semibold">{{ trans('tables::tables.toolbar.filters') }}</h4>
@@ -318,7 +365,7 @@ const handleGroupChange = (groupColumn: string | null) => {
                 </Button>
               </div>
               <div class="space-y-3">
-                <slot name="filters" />
+                <slot name="filters" layout="stacked" />
               </div>
             </div>
           </PopoverContent>
@@ -403,6 +450,15 @@ const handleGroupChange = (groupColumn: string | null) => {
         <!-- Toolbar Actions Slot -->
         <slot name="toolbar-actions" />
       </div>
+    </div>
+
+    <!-- Filters: above_table layout, always visible above the records -->
+    <div
+      v-if="filters.length > 0 && filtersLayout === 'above_table'"
+      class="border-b border-border px-4 py-3"
+      data-filters-layout="above_table"
+    >
+      <slot name="filters" layout="inline" />
     </div>
 
     <!-- Active Filters Display -->

@@ -137,15 +137,88 @@ class Filter extends Component
             $schema = $schema();
         }
 
-        // If single field passed as array, use first element
-        if (is_array($schema) && count($schema) > 0) {
-            // Store all form fields
-            $this->formField = $schema[0] ?? null;
-            // Store additional fields for multi-field filters
-            $this->formFields = $schema;
+        $fields = array_values($schema);
+
+        if (count($fields) > 0) {
+            // The first field is kept for backwards compatibility with single-field consumers
+            $this->formField = $fields[0];
+            // Every field is serialized so the frontend can render the whole form
+            $this->formFields = $fields;
         }
 
         return $this;
+    }
+
+    /**
+     * Whether the filter state is an array keyed by form field name (Filament style
+     * `$data`), as opposed to one scalar value keyed by the filter name.
+     *
+     * A form made of a single field named like the filter keeps the scalar state
+     * the filter always had, so existing `fn ($query, $value)` callbacks keep working.
+     */
+    public function hasFormData(): bool
+    {
+        if ($this->formFields === null || count($this->formFields) === 0) {
+            return false;
+        }
+
+        return ! (count($this->formFields) === 1 && $this->formFields[0]->getName() === $this->getName());
+    }
+
+    /**
+     * Normalize a raw request value into the state sent to the frontend:
+     * empty values are dropped and a state with nothing left becomes null.
+     */
+    public function normalizeState(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            $isList = array_is_list($value);
+            $value = array_filter(
+                array_map(fn ($item) => $this->normalizeState($item), $value),
+                fn ($item) => $item !== null
+            );
+
+            if ($value === []) {
+                return null;
+            }
+
+            return $isList ? array_values($value) : $value;
+        }
+
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Whether a form-data filter has no value in any of its fields, in which
+     * case it must not be applied to the query.
+     */
+    public function isEmptyFormData(mixed $value): bool
+    {
+        return $this->hasFormData() && $this->normalizeState($value) === null;
+    }
+
+    /**
+     * Build the `$data` array handed to the query callback of a form filter:
+     * one key per form field, null for fields the request did not fill in.
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveFormData(mixed $value): array
+    {
+        $names = array_map(fn (Field $field) => $field->getName(), $this->getFormFields());
+        $data = array_fill_keys($names, null);
+
+        if (is_array($value)) {
+            return array_merge($data, $value);
+        }
+
+        $data[$names[0]] = $value;
+
+        return $data;
     }
 
     /**
@@ -174,7 +247,7 @@ class Filter extends Component
     public function apply($query, mixed $value)
     {
         if ($this->query) {
-            return ($this->query)($query, $value);
+            return ($this->query)($query, $this->hasFormData() ? $this->resolveFormData($value) : $value);
         }
 
         return $query;
@@ -184,6 +257,7 @@ class Filter extends Component
     {
         $props = [
             'default' => $this->default,
+            'hasFormData' => $this->hasFormData(),
         ];
 
         // If multiple form fields are set, include all of them
