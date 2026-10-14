@@ -5,7 +5,15 @@ import DataTable from './DataTable.vue'
 import CardGrid from './CardGrid.vue'
 import TableToolbar from './TableToolbar.vue'
 import GridToolbar from './GridToolbar.vue'
-import LaraviltComponentRenderer from '@laravilt/forms/components/LaraviltComponentRenderer.vue'
+import TableFilters from './TableFilters.vue'
+import {
+    buildInitialFilterState,
+    cleanFilterState,
+    isEmptyFilterValue,
+    setFilterFieldValue,
+    toQueryString,
+    type FilterDefinition,
+} from '../composables/filterState'
 import ActionButton from '@laravilt/actions/components/ActionButton.vue'
 import { useLocalization } from '@laravilt/support/composables'
 
@@ -129,7 +137,19 @@ const searchQuery = ref<string>('')
 const isInfiniteScrollActive = computed(() => {
     return props.table.infiniteScroll && !activeGroup.value
 })
-const activeFilters = ref<Record<string, any>>({})
+// Filter state, keyed by filter name. Hydrated from the request (served by the PHP table as
+// `filterState`) and the URL so a refresh or a hand-typed URL shows the values that are filtering the query.
+const activeFilters = ref<Record<string, any>>(
+    buildInitialFilterState(
+        props.table.filters,
+        props.table.filterState,
+        typeof window !== 'undefined' ? window.location.search : '',
+    ),
+)
+const filtersLayout = computed<'sidebar' | 'dropdown' | 'above_table'>(() => {
+    const layout = props.table.filtersLayout
+    return layout === 'dropdown' || layout === 'above_table' ? layout : 'sidebar'
+})
 const clearSelectionsKey = ref<number>(0)
 const isLoadingData = ref<boolean>(false)
 const perPage = ref<number>(props.pagination.per_page || 12)
@@ -357,9 +377,16 @@ const handleFilterChange = (filters: Record<string, any>) => {
     reloadData(1, true)
 }
 
+// A filter input changed. `fieldName` is set for fields of a multi field filter form.
+const handleFilterFieldUpdate = (filter: FilterDefinition, value: any, fieldName?: string) => {
+    activeFilters.value = setFilterFieldValue(activeFilters.value, filter, value, fieldName)
+    isFilterReload.value = true
+    reloadData(1, true) // Reset to page 1 when filtering
+}
+
 const handleFilterUpdate = (filterName: string, value: any) => {
     // Remove filter if value is empty or false (for toggles)
-    if (value === null || value === undefined || value === '' || value === false) {
+    if (isEmptyFilterValue(value)) {
         const { [filterName]: _, ...rest } = activeFilters.value
         activeFilters.value = rest
     } else {
@@ -481,10 +508,8 @@ const reloadData = async (page?: number, resetPage = false) => {
     }
 
     // Only add filters that have values
-    Object.entries(activeFilters.value).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '' && value !== false) {
-            params[key] = value
-        }
+    Object.entries(cleanFilterState(activeFilters.value)).forEach(([key, value]) => {
+        params[key] = value
     })
 
     // Add group if active
@@ -495,7 +520,7 @@ const reloadData = async (page?: number, resetPage = false) => {
     // Use AJAX (fetch) if useAjax is true - this avoids Inertia page reload
     if (props.useAjax) {
         try {
-            const queryString = new URLSearchParams(params).toString()
+            const queryString = toQueryString(params)
             const fetchUrl = `${props.queryRoute}?${queryString}`
 
             const response = await fetch(fetchUrl, {
@@ -523,7 +548,7 @@ const reloadData = async (page?: number, resetPage = false) => {
 
     // Update URL manually (only for Inertia mode)
     const url = new URL(window.location.href)
-    url.search = new URLSearchParams(params).toString()
+    url.search = toQueryString(params)
     window.history.replaceState({}, '', url.toString())
 
     router.get(props.queryRoute, params, {
@@ -611,16 +636,14 @@ const loadMoreRecords = () => {
         }
 
         // Only add filters that have values
-        Object.entries(activeFilters.value).forEach(([key, value]) => {
-            if (value !== null && value !== undefined && value !== '' && value !== false) {
-                params[key] = value
-            }
+        Object.entries(cleanFilterState(activeFilters.value)).forEach(([key, value]) => {
+            params[key] = value
         })
 
         // Use AJAX (fetch) if useAjax is true - this avoids Inertia page reload
         if (props.useAjax) {
             try {
-                const queryString = new URLSearchParams(params).toString()
+                const queryString = toQueryString(params)
                 const fetchUrl = `${props.queryRoute}?${queryString}`
 
                 const response = await fetch(fetchUrl, {
@@ -648,7 +671,7 @@ const loadMoreRecords = () => {
 
         // Update URL (only for Inertia mode)
         const url = new URL(window.location.href)
-        url.search = new URLSearchParams(params).toString()
+        url.search = toQueryString(params)
         window.history.replaceState({}, '', url.toString())
 
         router.get(props.queryRoute, params, {
@@ -771,23 +794,9 @@ const handleBulkActionCompleted = () => {
 }
 
 onMounted(() => {
-    // Initialize filters from URL query parameters
     const urlParams = new URLSearchParams(window.location.search)
-    const initialFilters: Record<string, any> = {}
 
-    // Get all filter names from table configuration
-    const filterNames = props.table.filters?.map((f: any) => f.name) || []
-
-    // Read filter values from URL
-    filterNames.forEach((filterName: string) => {
-        const value = urlParams.get(filterName)
-        if (value !== null && value !== '') {
-            initialFilters[filterName] = value
-        }
-    })
-
-    // Initialize activeFilters with URL values
-    activeFilters.value = initialFilters
+    // Filter state was hydrated from the request/URL when the component was set up.
 
     // Initialize search from URL
     const searchParam = urlParams.get('search')
@@ -846,10 +855,8 @@ onMounted(() => {
         }
 
         // Add filters if present
-        Object.entries(activeFilters.value).forEach(([key, value]) => {
-            if (value !== null && value !== undefined && value !== '' && value !== false) {
-                params[key] = value
-            }
+        Object.entries(cleanFilterState(activeFilters.value)).forEach(([key, value]) => {
+            params[key] = value
         })
 
         // Add group if present
@@ -858,7 +865,7 @@ onMounted(() => {
         }
 
         // Update URL without reloading
-        currentUrl.search = new URLSearchParams(params).toString()
+        currentUrl.search = toQueryString(params)
         window.history.replaceState({}, '', currentUrl.toString())
     }
 
@@ -888,6 +895,7 @@ onUnmounted(() => {
                 :filters="table.filters"
                 :active-filters="activeFilters"
                 :filter-indicators="filterIndicators"
+                :filters-layout="filtersLayout"
                 :columns="table.columns"
                 :bulk-actions-available="extractedBulkActions.length > 0"
                 :selected-count="selectedRecords.length"
@@ -914,35 +922,13 @@ onUnmounted(() => {
                         @action-complete="handleActionComplete"
                     />
                 </template>
-                <template #filters>
-                    <div
-                        v-for="filter in table.filters"
-                        :key="filter.name"
-                        class="filter-field"
-                    >
-                        <!-- Render custom form field if available -->
-                        <LaraviltComponentRenderer
-                            v-if="filter.formField"
-                            :component="filter.formField.component"
-                            :props="{
-                                ...filter.formField,
-                                modelValue: activeFilters[filter.name] || filter.default || null,
-                                name: filter.name,
-                            }"
-                            @update:modelValue="(value) => handleFilterUpdate(filter.name, value)"
-                        />
-                        <!-- Fallback to default filter component based on type -->
-                        <LaraviltComponentRenderer
-                            v-else
-                            :component="filter.component"
-                            :props="{
-                                ...filter,
-                                modelValue: activeFilters[filter.name] || filter.default || null,
-                                name: filter.name,
-                            }"
-                            @update:modelValue="(value) => handleFilterUpdate(filter.name, value)"
-                        />
-                    </div>
+                <template #filters="{ layout }">
+                    <TableFilters
+                        :layout="layout"
+                        :filters="table.filters"
+                        :state="activeFilters"
+                        @update="handleFilterFieldUpdate"
+                    />
                 </template>
                 <template #bulk-actions>
                     <ActionButton

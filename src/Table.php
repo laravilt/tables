@@ -10,6 +10,7 @@ use Laravilt\Panel\PanelRegistry;
 use Laravilt\Support\Contracts\InertiaSerializable;
 use Laravilt\Tables\Columns\Column;
 use Laravilt\Tables\Columns\ImageColumn;
+use Laravilt\Tables\Enums\FiltersLayout;
 use Laravilt\Tables\Filters\Filter;
 
 class Table implements InertiaSerializable
@@ -387,11 +388,13 @@ class Table implements InertiaSerializable
     /**
      * Set the filters layout.
      *
-     * @param  string  $layout  One of 'sidebar', 'dropdown', 'above_table'
+     * @param  FiltersLayout|string  $layout  One of 'sidebar' (default), 'dropdown', 'above_table'
+     *
+     * @throws \InvalidArgumentException When the layout is not recognised
      */
-    public function filtersLayout(string $layout): static
+    public function filtersLayout(FiltersLayout|string $layout): static
     {
-        $this->filtersLayout = $layout;
+        $this->filtersLayout = FiltersLayout::resolve($layout)->value;
 
         return $this;
     }
@@ -1030,6 +1033,28 @@ class Table implements InertiaSerializable
     }
 
     /**
+     * The current filter state, read from the request (URL) and keyed by filter name.
+     * The frontend uses it to hydrate the filter inputs, so a refresh or a
+     * hand-typed URL shows the same values that are filtering the query.
+     *
+     * @return array<string, mixed>
+     */
+    public function getFilterState(): array
+    {
+        $state = [];
+
+        foreach ($this->filters as $filter) {
+            $value = $filter->normalizeState(request()->get($filter->getName()));
+
+            if ($value !== null) {
+                $state[$filter->getName()] = $value;
+            }
+        }
+
+        return $state;
+    }
+
+    /**
      * Execute the query and get records with applied filters, search, and sorting.
      */
     protected function getRecords(): array
@@ -1093,7 +1118,7 @@ class Table implements InertiaSerializable
         // Apply filters
         foreach ($this->filters as $filter) {
             $value = request()->get($filter->getName());
-            if ($value !== null) {
+            if ($value !== null && ! $filter->isEmptyFormData($value)) {
                 $filter->apply($query, $value);
             }
         }
@@ -1447,7 +1472,7 @@ class Table implements InertiaSerializable
         $filterIndicators = [];
         foreach ($this->filters as $filter) {
             $value = request()->get($filter->getName());
-            if ($value !== null && $value !== '' && $value !== false) {
+            if ($value !== null && $value !== '' && $value !== false && ! $filter->isEmptyFormData($value)) {
                 $indicator = $filter->getIndicator($value);
                 if ($indicator) {
                     $filterIndicators[] = $indicator;
@@ -1472,6 +1497,7 @@ class Table implements InertiaSerializable
                 $this->filters
             ),
             'filterIndicators' => $filterIndicators,
+            'filterState' => $this->getFilterState(),
             'actions' => array_map(
                 fn ($action) => method_exists($action, 'toInertiaProps') ? $action->toInertiaProps() : $action,
                 $this->actions
